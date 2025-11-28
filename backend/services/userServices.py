@@ -22,13 +22,9 @@ def saveUserToDB(username, email, passwordHash, isAdmin: bool, path: Path):
     data[username] = {
         "email": email,
         "password": passwordHash.decode("utf-8"),
-<<<<<<< Updated upstream
-        "isVerified": False
-=======
         "isVerified": False,
         "verificationToken": None,  # Will be set during user creation
         "isAdmin": isAdmin
->>>>>>> Stashed changes
     }
 
     with open(path, 'w') as jsonFile:

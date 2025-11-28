@@ -68,10 +68,6 @@ def testFindUserInDB(mockBaseDir):
     saveUserToDB("testUser.username",testUser.email,testUser.passwordHash,False,path)
     saveUserToDB("tester",testUser.email,testUser.passwordHash,False,path)
 
-<<<<<<< Updated upstream
-    assert findUserInDB(testUser.username,path) == {"email":testUser.email,"password":testUser.passwordHash.decode('utf-8'),"isVerified": False}
-=======
     assert findUserInDB(testUser.username,path) == {"email":testUser.email,"password":testUser.passwordHash.decode('utf-8'),"isVerified": False, "verificationToken": None, "isAdmin": False}
->>>>>>> Stashed changes
     with pytest.raises(ValueError):
         findUserInDB("notTester",path)

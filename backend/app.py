@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from backend.routers import (
     movieRouter,
     reviewRouter,
@@ -7,8 +8,6 @@ from backend.routers import (
     adminRouter,
     listsRouter
 )
-<<<<<<< Updated upstream
-=======
 from backend.users.user import User
 from backend.services.userServices import readAllUsers
 from pathlib import Path
@@ -60,12 +59,12 @@ async def lifespan(app: FastAPI):
     yield
     # Cleanup (if needed)
     print("Shutting down...")
->>>>>>> Stashed changes
 
 app = FastAPI(
     title="BestBytes Movie Review API",
     description="Backend API",
     version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(

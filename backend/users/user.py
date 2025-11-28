@@ -64,12 +64,9 @@ class User:
         self.lastLogin = None
 
         if save:
-<<<<<<< Updated upstream
-            saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, path=path)
-=======
             saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, isAdmin=self.isAdmin, path=path)
-            saveVerificationToken(username=self.username, token=self.verificationToken, path=path)
->>>>>>> Stashed changes
+            # TODO: Implement saveVerificationToken function
+            # saveVerificationToken(username=self.username, token=self.verificationToken, path=path)
 
 
         
