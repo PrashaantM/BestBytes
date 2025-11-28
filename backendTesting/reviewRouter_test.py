@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from backend.routers.reviewRouter import router
+from backend.routers.reviewRouter import router, movieReviews_memory
 from backend.schemas.movieReviews import movieReviews
 from backend.schemas.movie import movie
 

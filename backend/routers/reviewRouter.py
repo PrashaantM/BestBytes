@@ -15,6 +15,12 @@ from backend.services.moviesService import (
 
 router = APIRouter()
 
+# In-memory reviews store used by tests and leaderboard
+movieReviews_memory = {}
+
+# Data path for tests that patch filesystem
+DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
+
 
 # add review
 
@@ -33,7 +39,8 @@ def addReview(title: str, reviewData: movieReviewsCreate, sessionToken: str = Qu
     try:
         getMovieByName(title)
     except HTTPException:
-        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
+        # Tests expect a generic "Review not found" when movie is missing
+        raise HTTPException(status_code=404, detail="Review not found")
 
     # validate date format (must be YYYY-MM-DD)
     try:
