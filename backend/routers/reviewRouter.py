@@ -1,9 +1,12 @@
 import os
 import json
-from fastapi import APIRouter, HTTPException
+import csv
+from fastapi import APIRouter, HTTPException, Query
 from typing import List
 from backend.schemas.movie import movie
 from backend.schemas.movieReviews import movieReviews, movieReviewsCreate, movieReviewsUpdate
+from backend.schemas.leaderboard import ReviewerStats, LeaderboardEntry
+from backend.services.leaderboardService import generateLeaderboard, calculateReviewerStats
 from backend.users.user import User
 
 router = APIRouter()
@@ -12,6 +15,54 @@ router = APIRouter()
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
 
 movieReviews_memory = {}
+
+
+# Load reviews from CSV files at startup
+def loadReviewsFromCSV():
+    """Load all reviews from CSV files into movieReviews_memory"""
+    for movie_folder in os.listdir(DATA_PATH):
+        movie_path = os.path.join(DATA_PATH, movie_folder)
+        if os.path.isdir(movie_path):
+            csv_path = os.path.join(movie_path, "movieReviews.csv")
+            if os.path.exists(csv_path):
+                reviews = []
+                try:
+                    with open(csv_path, "r", encoding="utf-8") as f:
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            try:
+                                # Clean and validate data
+                                usefulness = row.get("Usefulness Vote", "0").strip()
+                                total_votes = row.get("Total Votes", "0").strip()
+                                rating = row.get("User's Rating out of 10", "0").strip()
+                                review_text = row.get("Review", "")[:5000]  # Truncate to 5000 chars
+                                
+                                # Skip rows with invalid numeric data
+                                if not usefulness.isdigit() or not total_votes.isdigit():
+                                    continue
+                                    
+                                # Convert CSV row to movieReviews object
+                                review = movieReviews(
+                                    dateOfReview=row.get("Date of Review", ""),
+                                    user=row.get("User", ""),
+                                    usefulnessVote=int(usefulness),
+                                    totalVotes=int(total_votes),
+                                    userRatingOutOf10=float(rating) if rating.replace('.', '', 1).isdigit() else 0.0,
+                                    reviewTitle=row.get("Review Title", "")[:200],  # Truncate to 200 chars
+                                    review=review_text
+                                )
+                                reviews.append(review)
+                            except Exception as e:
+                                # Skip individual reviews that fail validation
+                                continue
+                    if reviews:
+                        movieReviews_memory[movie_folder.lower()] = reviews
+                        print(f"Loaded {len(reviews)} reviews for {movie_folder}")
+                except Exception as e:
+                    print(f"Error loading reviews for {movie_folder}: {e}")
+
+# Load reviews at module import time
+loadReviewsFromCSV()
 
 
 # helper to get review
@@ -143,3 +194,31 @@ def deleteReview(title: str, index: int, sessionToken: str):
     removed = reviews.pop(index)
     movieReviews_memory[title.lower()] = reviews
     return {"message": f"Deleted review '{removed.reviewTitle}' by {removed.user}"}
+
+
+# leaderboard endpoints
+
+@router.get("/leaderboard", response_model=List[LeaderboardEntry])
+def getTopReviewers():
+    """
+    Get the top 10 reviewers leaderboard based on helpfulness score.
+    
+    Helpfulness score = (total_usefulness_votes * usefulness_ratio) + (total_reviews * 10)
+    This rewards both quality (usefulness ratio) and quantity (number of reviews).
+    
+    Returns the top 10 reviewers who have written at least 1 review.
+    """
+    leaderboard = generateLeaderboard(movieReviews_memory, limit=10, min_reviews=1)
+    return leaderboard
+
+
+@router.get("/stats/{username}", response_model=ReviewerStats)
+def getReviewerStats(username: str):
+    """Get detailed statistics for a specific reviewer."""
+    all_stats = calculateReviewerStats(movieReviews_memory)
+    
+    stats = all_stats.get(username.lower())
+    if not stats:
+        raise HTTPException(status_code=404, detail=f"No reviews found for user '{username}'")
+    
+    return stats
