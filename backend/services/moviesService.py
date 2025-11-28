@@ -6,7 +6,7 @@ from fastapi import HTTPException
 import json
 
 from schemas.movie import movie, movieCreate, movieUpdate, movieFilter
-from schemas.movieReviews import movieReviews, movieReviewsCreate
+from schemas.movieReviews import movieReviews, movieReviewsCreate, movieReviewsUpdate
 from repositories.itemsRepo import loadMetadata, loadReviews, saveMetadata, saveReviews
 from users import user
 
@@ -82,6 +82,37 @@ def addReview(title: str, payload: movieReviewsCreate) -> movieReviews:
     saveReviews(title, reviews)
     return movieReviews(**newReview)
 
+
+def updateReview(title: str, index: int, payload: movieReviewsUpdate) -> movieReviews:
+    """Update an existing review by index for a specific movie."""
+    movieDir = baseDir / title
+    if not movieDir.exists():
+        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
+
+    reviews = loadReviews(title)
+    if not reviews or index >= len(reviews):
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    # Update the review at the given index
+    updatedReviewData = {**reviews[index], **payload.dict(exclude_unset=True)}
+    reviews[index] = updatedReviewData
+    saveReviews(title, reviews)
+    return movieReviews(**updatedReviewData)
+
+
+def deleteReview(title: str, index: int) -> dict:
+    """Delete a review by index for a specific movie."""
+    movieDir = baseDir / title
+    if not movieDir.exists():
+        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
+
+    reviews = loadReviews(title)
+    if not reviews or index >= len(reviews):
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    removed = reviews.pop(index)
+    saveReviews(title, reviews)
+    return {"message": f"Deleted review '{removed.get('reviewTitle', 'Unknown')}' by {removed.get('user', 'Unknown')}"}
 
 
 def searchMovies(filters: movieFilter) -> List[movie]:
