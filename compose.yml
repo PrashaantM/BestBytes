@@ -4,4 +4,4 @@ services:
     ports:
     - "8000:8000"
     volumes:
-    - ./backend/data:/backend/data
+    - ./backend/data:/app/backend/data
