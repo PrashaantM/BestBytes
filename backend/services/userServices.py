@@ -22,7 +22,8 @@ def saveUserToDB(username, email, passwordHash, path: Path):
     data[username] = {
         "email": email,
         "password": passwordHash.decode("utf-8"),
-        "isVerified": False
+        "isVerified": False,
+        "verificationToken": None  # Will be set during user creation
     }
 
     with open(path, 'w') as jsonFile:
@@ -42,6 +43,23 @@ def changeUserStatus(username:str, status:bool, path):
 
     if username in data:
         data[username]["isVerified"] = status
+        with open(path, 'w') as jsonFile:
+            json.dump(data, jsonFile, indent=2)
+
+def saveVerificationToken(username: str, token: str, path: Path):
+    """Save verification token to the database"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    data = {}
+    if path.exists():
+        try:
+            with open(path, 'r') as jsonFile:
+                data = json.load(jsonFile)
+        except json.JSONDecodeError:
+            data = {}
+
+    if username in data:
+        data[username]["verificationToken"] = token
         with open(path, 'w') as jsonFile:
             json.dump(data, jsonFile, indent=2)
 

@@ -9,7 +9,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import threading
 
-from backend.services.userServices import saveUserToDB, changeUserStatus
+from backend.services.userServices import saveUserToDB, changeUserStatus, saveVerificationToken
 
 
 
@@ -64,6 +64,7 @@ class User:
 
         if save:
             saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, path=path)
+            saveVerificationToken(username=self.username, token=self.verificationToken, path=path)
 
 
         
