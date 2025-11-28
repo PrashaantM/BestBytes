@@ -1,7 +1,9 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-    - "8000:8000"
-    volumes:
-    - ./backend/data:/app/backend/data
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
