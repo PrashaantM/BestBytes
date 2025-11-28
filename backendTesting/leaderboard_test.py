@@ -102,7 +102,7 @@ class TestLeaderboard:
         assert data[1]["totalReviews"] == 1
 
     def test_leaderboard_with_limit(self):
-        """Test limit parameter"""
+        """Test that leaderboard returns top 10 reviewers"""
         for i in range(15):
             movieReviews_memory[f"movie{i}"] = [
                 movieReviews(
@@ -116,17 +116,17 @@ class TestLeaderboard:
                 )
             ]
 
-        response = client.get("/leaderboard?limit=5")
+        response = client.get("/leaderboard")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 5
+        assert len(data) == 10  # Should return top 10
         
         # Check ranks are sequential
         for i, entry in enumerate(data, start=1):
             assert entry["rank"] == i
 
     def test_leaderboard_with_min_reviews(self):
-        """Test min_reviews parameter filters correctly"""
+        """Test that all reviewers with at least 1 review are included"""
         movieReviews_memory["movie1"] = [
             movieReviews(
                 dateOfReview="2024-01-01",
@@ -157,14 +157,16 @@ class TestLeaderboard:
             )
         ]
 
-        response = client.get("/leaderboard?min_reviews=2")
+        response = client.get("/leaderboard")
         assert response.status_code == 200
         data = response.json()
         
-        # Only PowerUser should appear (2 reviews)
-        assert len(data) == 1
-        assert data[0]["username"] == "poweruser"
+        # Both users should appear (PowerUser with 2 reviews ranked higher)
+        assert len(data) == 2
+        assert data[0]["username"] == "poweruser"  # Ranked first
         assert data[0]["totalReviews"] == 2
+        assert data[1]["username"] == "casualuser"  # Ranked second
+        assert data[1]["totalReviews"] == 1
 
     def test_leaderboard_helpfulness_score_calculation(self):
         """Test that helpfulness score is calculated correctly"""
