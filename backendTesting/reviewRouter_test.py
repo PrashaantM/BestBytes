@@ -63,6 +63,7 @@ class TestGetAllReviewsForMovie:
         (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
 
         monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
+        monkeypatch.setattr("backend.repositories.itemsRepo.baseDir", tmp_path)
 
         response = client.get("/Joker/reviews")
         assert response.status_code == 404

@@ -5,6 +5,7 @@ from typing import List
 from backend.schemas.movie import movie
 from backend.schemas.movieReviews import movieReviews, movieReviewsCreate, movieReviewsUpdate
 from backend.users.user import User
+from backend.repositories.itemsRepo import loadReviews
 
 router = APIRouter()
 
@@ -16,10 +17,62 @@ movieReviews_memory = {}
 
 # helper to get review
 def getReviewsForMovie(title: str) -> List[movieReviews]:
-    """Return reviews for a given movie title."""
-    return movieReviews_memory.get(title.lower(), [])
-
-
+    """Return reviews for a given movie title, loading from disk if not in memory."""
+    title_key = title.lower()
+    
+    # Check if reviews are in memory
+    if title_key in movieReviews_memory:
+        return movieReviews_memory[title_key]
+    
+    # Load reviews from disk
+    review_dicts = loadReviews(title)
+    if review_dicts:
+        # Map CSV field names to Pydantic model field names
+        field_mapping = {
+            "Date of Review": "dateOfReview",
+            "User": "user",
+            "Usefulness Vote": "usefulnessVote",
+            "Total Votes": "totalVotes",
+            "User's Rating out of 10": "userRatingOutOf10",
+            "Review Title": "reviewTitle",
+            "Review": "review"
+        }
+        
+        # Convert CSV dictionaries to model-compatible dictionaries
+        mapped_reviews = []
+        for review in review_dicts:
+            try:
+                mapped_review = {field_mapping.get(k, k): v for k, v in review.items()}
+                # Convert numeric fields from strings
+                if 'usefulnessVote' in mapped_review:
+                    mapped_review['usefulnessVote'] = int(mapped_review['usefulnessVote'])
+                if 'totalVotes' in mapped_review:
+                    mapped_review['totalVotes'] = int(mapped_review['totalVotes'])
+                if 'userRatingOutOf10' in mapped_review:
+                    # Skip malformed rating values
+                    rating_str = mapped_review['userRatingOutOf10'].strip()
+                    if not rating_str or '\n' in rating_str:
+                        continue  # Skip this review
+                    mapped_review['userRatingOutOf10'] = float(rating_str)
+                mapped_reviews.append(mapped_review)
+            except (ValueError, KeyError):
+                # Skip malformed reviews
+                continue
+        
+            # Convert to movieReviews objects and cache in memory
+            reviews = []
+            for review in mapped_reviews:
+                try:
+                    reviews.append(movieReviews(**review))
+                except Exception:
+                    # Skip reviews that fail Pydantic validation (e.g., too long)
+                    continue
+            
+            if reviews:
+                movieReviews_memory[title_key] = reviews
+                return reviews
+    
+    return []
 # list all reviews for a movie
 
 # - Returns 404 if:
