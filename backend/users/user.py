@@ -9,7 +9,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import threading
 
-from backend.services.userServices import saveUserToDB, changeUserStatus
+from backend.services.userServices import saveUserToDB, changeUserStatus, saveVerificationToken
 
 
 
@@ -19,14 +19,14 @@ class User:
     activeSessions = {}  # Store active user sessions with expiry
     _lock = threading.Lock()  # Thread lock for concurrent access
     sessionTimeout = timedelta(hours=24)  # Sessions expire after 24 hours
-    path = Path(r"backend\data\Users\userList.json")
+    path = Path("backend/data/Users/userList.json")
     
     def __init__(self, username: str, email: str, password: str, save:bool = True):
         """Initialize a new user with validation"""
         self.id = str(uuid.uuid4())
 
         
-        path = Path(r"backend\data\Users\userList.json")    
+        path = Path("backend/data/Users/userList.json")    
         self.path = path
 
         data = {}
@@ -64,6 +64,7 @@ class User:
 
         if save:
             saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, path=path)
+            saveVerificationToken(username=self.username, token=self.verificationToken, path=path)
 
 
         
@@ -108,7 +109,7 @@ class User:
         """Verify user's email with verification token"""
         if token == self.verificationToken:
             self.isVerified = True
-            path = Path(r"backend\data\Users\userList.json")
+            path = Path("backend/data/Users/userList.json")
             changeUserStatus(self.username,True, path)
             return True
         return False

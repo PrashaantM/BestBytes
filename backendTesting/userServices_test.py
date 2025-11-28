@@ -68,6 +68,6 @@ def testFindUserInDB(mockBaseDir):
     saveUserToDB("testUser.username",testUser.email,testUser.passwordHash,path)
     saveUserToDB("tester",testUser.email,testUser.passwordHash,path)
 
-    assert findUserInDB(testUser.username,path) == {"email":testUser.email,"password":testUser.passwordHash.decode('utf-8'),"isVerified": False}
+    assert findUserInDB(testUser.username,path) == {"email":testUser.email,"password":testUser.passwordHash.decode('utf-8'),"isVerified": False, "verificationToken": None}
     with pytest.raises(ValueError):
         findUserInDB("notTester",path)
