@@ -2,9 +2,10 @@ import os
 import json
 from fastapi import APIRouter, HTTPException
 from typing import List
-from backend.schemas.movie import movie
+from backend.schemas.movie import movie, movieFilter
 from backend.schemas.movieReviews import movieReviews, movieReviewsCreate
 from backend.users.user import User
+from backend.services.moviesService import searchMovies
 
 router = APIRouter()
 
@@ -43,6 +44,13 @@ def get_all_movies():
     if not movies:
         raise HTTPException(status_code=404, detail="No movies found in data directory")
     return movies
+
+# search movies with filters
+@router.post("/search", response_model=List[movie])
+def search_movies(filters: movieFilter):
+    """Search for movies based on various filters like title, genres, directors, rating, and year."""
+    results = searchMovies(filters)
+    return results
 
 # get movie details
 

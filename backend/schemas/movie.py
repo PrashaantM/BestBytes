@@ -46,9 +46,14 @@ class movieUpdate(BaseModel):
     description: str = Field(..., max_length=500)
 
 class movieFilter(BaseModel):
-    title: Optional[str] = None
-    genres: Optional[List[str]] = None
-    directors: Optional[List[str]] = None
-    min_rating: Optional[float] = None
-    max_rating: Optional[float] = None
-    year: Optional[int] = None
+    """
+    Filter criteria for searching movies.
+    
+    Available genres: Action, Adventure, Comedy, Crime, Drama, Fantasy, Horror, Romance, Sci-Fi, Thriller
+    """
+    title: Optional[str] = Field(None, description="Partial movie title (case-insensitive)")
+    genres: Optional[List[str]] = Field(None, description="List of genres to filter by. Available: Action, Adventure, Comedy, Crime, Drama, Fantasy, Horror, Romance, Sci-Fi, Thriller")
+    directors: Optional[List[str]] = Field(None, description="List of director names to filter by")
+    min_rating: Optional[float] = Field(None, description="Minimum IMDb rating (0.0-10.0)", ge=0.0, le=10.0)
+    max_rating: Optional[float] = Field(None, description="Maximum IMDb rating (0.0-10.0)", ge=0.0, le=10.0)
+    year: Optional[int] = Field(None, description="Filter by year in release date")
