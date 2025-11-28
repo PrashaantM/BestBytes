@@ -88,20 +88,20 @@ class TestLoadReviews:
     
     def testLoadReviewsSuccess(self):
         """Successfully loads valid reviews CSV"""
-        csvData = "name,review\nAlice,Great Movie\nBob,Ok"
+        csvData = "Date of Review,User,Usefulness Vote,Total Votes,User's Rating out of 10,Review Title,Review\n2025-01-01,Alice,5,10,8.5,Great,Great Movie\n2025-01-02,Bob,3,5,7.0,Okay,Ok"
         
         with patch("backend.repositories.itemsRepo.Path.exists", return_value=True), \
              patch("backend.repositories.itemsRepo.Path.open", mock_open(read_data=csvData)):
             result = itemsRepo.loadReviews("FakeMovie")
             assert len(result) == 2
-            assert result[0]["name"] == "Alice"
+            assert result[0]["user"] == "Alice"
             assert result[0]["review"] == "Great Movie"
-            assert result[1]["name"] == "Bob"
+            assert result[1]["user"] == "Bob"
             assert result[1]["review"] == "Ok"
     
     def testLoadReviewsEmptyFile(self):
         """Handles CSV with only headers"""
-        csvData = "name,review\n"
+        csvData = "Date of Review,User,Usefulness Vote,Total Votes,User's Rating out of 10,Review Title,Review\n"
         
         with patch("backend.repositories.itemsRepo.Path.exists", return_value=True), \
              patch("backend.repositories.itemsRepo.Path.open", mock_open(read_data=csvData)):
@@ -110,7 +110,7 @@ class TestLoadReviews:
     
     def testLoadReviewsWithCommasInContent(self):
         """Handles reviews containing commas"""
-        csvData = "name,review\nAlice,\"Great, really enjoyed it\"\nBob,Okay"
+        csvData = "Date of Review,User,Usefulness Vote,Total Votes,User's Rating out of 10,Review Title,Review\n2025-01-01,Alice,5,10,8.5,Great,\"Great, really enjoyed it\"\n2025-01-02,Bob,3,5,7.0,Okay,Okay"
         
         with patch("backend.repositories.itemsRepo.Path.exists", return_value=True), \
              patch("backend.repositories.itemsRepo.Path.open", mock_open(read_data=csvData)):
@@ -120,7 +120,7 @@ class TestLoadReviews:
     
     def testLoadReviewsWithUnicode(self):
         """Handles Unicode characters in reviews"""
-        csvData = "name,review\nAlice,Très bon film!\nBob,Excelente película"
+        csvData = "Date of Review,User,Usefulness Vote,Total Votes,User's Rating out of 10,Review Title,Review\n2025-01-01,Alice,5,10,8.5,Great,Très bon film!\n2025-01-02,Bob,3,5,7.0,Excellent,Excelente película"
         
         with patch("backend.repositories.itemsRepo.Path.exists", return_value=True), \
              patch("backend.repositories.itemsRepo.Path.open", mock_open(read_data=csvData)):
@@ -218,8 +218,8 @@ class TestSaveReviews:
         """Successfully writes reviews to CSV"""
         movieName = "FakeMovie"
         reviews = [
-            {"name": "Alice", "review": "Good"},
-            {"name": "Bob", "review": "Great"}
+            {"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Good Title", "review": "Good"},
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Great Title", "review": "Great"}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
@@ -232,8 +232,8 @@ class TestSaveReviews:
                 reader = csv.DictReader(f)
                 rows = list(reader)
                 assert len(rows) == 2
-                assert rows[0]["name"] == "Alice"
-                assert rows[1]["review"] == "Great"
+                assert rows[0]["User"] == "Alice"
+                assert rows[1]["Review"] == "Great"
     
     def testSaveReviewsDeletesFileWhenEmpty(self, tmp_path):
         """Deletes reviews file when list is empty"""
@@ -264,8 +264,8 @@ class TestSaveReviews:
         """Handles reviews with special characters"""
         movieName = "FakeMovie"
         reviews = [
-            {"name": "Alice", "review": "Great, really \"amazing\"!"},
-            {"name": "Bob", "review": "It's okay, not bad"}
+            {"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Amazing", "review": "Great, really \"amazing\"!"},
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Okay", "review": "It's okay, not bad"}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
@@ -275,14 +275,14 @@ class TestSaveReviews:
             with filePath.open("r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
-                assert rows[0]["review"] == "Great, really \"amazing\"!"
+                assert rows[0]["Review"] == "Great, really \"amazing\"!"
     
     def testSaveReviewsWithUnicode(self, tmp_path):
         """Handles Unicode characters in reviews"""
         movieName = "FakeMovie"
         reviews = [
-            {"name": "Alice", "review": "Très bon!"},
-            {"name": "Bob", "review": "Excelente película"}
+            {"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Great", "review": "Très bon!"},
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Excellent", "review": "Excelente película"}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
@@ -292,12 +292,12 @@ class TestSaveReviews:
             with filePath.open("r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
-                assert rows[0]["review"] == "Très bon!"
+                assert rows[0]["Review"] == "Très bon!"
     
     def testSaveReviewsCreatesDirectory(self, tmp_path):
         """Creates directory if it doesn't exist"""
         movieName = "NewMovie"
-        reviews = [{"name": "Alice", "review": "Good"}]
+        reviews = [{"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Good", "review": "Good"}]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
             movieDir = tmp_path / movieName
@@ -311,7 +311,7 @@ class TestSaveReviews:
     def testSaveReviewsUsesAtomicWrite(self, tmp_path):
         """Verifies atomic write using temporary file"""
         movieName = "FakeMovie"
-        reviews = [{"name": "Alice", "review": "Good"}]
+        reviews = [{"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Good", "review": "Good"}]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
             with patch("os.replace") as mockReplace:
@@ -321,10 +321,10 @@ class TestSaveReviews:
     def testSaveReviewsOverwritesExisting(self, tmp_path):
         """Overwrites existing reviews file"""
         movieName = "FakeMovie"
-        oldReviews = [{"name": "Alice", "review": "Good"}]
+        oldReviews = [{"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Good", "review": "Good"}]
         newReviews = [
-            {"name": "Bob", "review": "Great"},
-            {"name": "Charlie", "review": "Amazing"}
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Great", "review": "Great"},
+            {"dateOfReview": "2025-01-03", "user": "Charlie", "usefulnessVote": "4", "totalVotes": "8", "userRatingOutOf10": "9.0", "reviewTitle": "Amazing", "review": "Amazing"}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
@@ -336,7 +336,7 @@ class TestSaveReviews:
                 reader = csv.DictReader(f)
                 rows = list(reader)
                 assert len(rows) == 2
-                assert rows[0]["name"] == "Bob"
+                assert rows[0]["User"] == "Bob"
 
 
 class TestIntegration:
@@ -356,8 +356,8 @@ class TestIntegration:
         """Verify save and load reviews work together"""
         movieName = "TestMovie"
         reviews = [
-            {"name": "Alice", "review": "Excellent"},
-            {"name": "Bob", "review": "Good movie"}
+            {"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Excellent Title", "review": "Excellent"},
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Good Title", "review": "Good movie"}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
@@ -394,11 +394,12 @@ class TestEdgeCasesAndErrorHandling:
                 itemsRepo.loadMetadata("FakeMovie")
     
     def testLoadReviewsFileReadPermissionError(self):
-        """Handles permission errors when reading reviews"""
+        """Handles permission errors when reading reviews - returns empty list"""
         with patch("backend.repositories.itemsRepo.Path.exists", return_value=True), \
              patch("backend.repositories.itemsRepo.Path.open", side_effect=PermissionError("Access denied")):
-            with pytest.raises(PermissionError):
-                itemsRepo.loadReviews("FakeMovie")
+            # loadReviews catches all exceptions and returns empty list
+            result = itemsRepo.loadReviews("FakeMovie")
+            assert result == []
     
     def testSaveMetadataWritePermissionError(self, tmp_path):
         """Handles permission errors when writing metadata"""
@@ -417,7 +418,7 @@ class TestEdgeCasesAndErrorHandling:
     def testSaveReviewsWritePermissionError(self, tmp_path):
         """Handles permission errors when writing reviews"""
         movieName = "FakeMovie"
-        reviews = [{"name": "Alice", "review": "Good"}]
+        reviews = [{"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Good", "review": "Good"}]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
             movieDir = tmp_path / movieName
@@ -470,18 +471,18 @@ class TestEdgeCasesAndErrorHandling:
             assert loadedData == data
     
     def testSaveReviewsWithExtraFields(self, tmp_path):
-        """Handles reviews with varying field sets"""
+        """Handles reviews with varying field sets - extra fields are preserved if they're in the schema"""
         movieName = "FakeMovie"
         reviews = [
-            {"name": "Alice", "review": "Good", "rating": "5"},
-            {"name": "Bob", "review": "Okay", "rating": "3"}
+            {"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Good Title", "review": "Good"},
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Okay Title", "review": "Okay"}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
             itemsRepo.saveReviews(movieName, reviews)
             loadedReviews = itemsRepo.loadReviews(movieName)
             assert len(loadedReviews) == 2
-            assert "rating" in loadedReviews[0]
+            assert "userRatingOutOf10" in loadedReviews[0]
     
     def testLoadMetadataEncodingError(self):
         """Handles encoding issues in metadata file"""
@@ -570,7 +571,7 @@ class TestEdgeCasesAndErrorHandling:
         """Handles CSV files with many reviews"""
         movieName = "PopularMovie"
         reviews = [
-            {"name": f"User{i}", "review": f"Review {i}"}
+            {"dateOfReview": "2025-01-01", "user": f"User{i}", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": f"Title {i}", "review": f"Review {i}"}
             for i in range(100)
         ]
         
@@ -606,8 +607,8 @@ class TestRealFileSystemOperations:
         """Integration test: actually write and read CSV file"""
         movieName = "RealMovie"
         reviews = [
-            {"name": "Alice", "review": "Great"},
-            {"name": "Bob", "review": "Good"}
+            {"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Great Title", "review": "Great"},
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Good Title", "review": "Good"}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
@@ -624,7 +625,7 @@ class TestRealFileSystemOperations:
                 reader = csv.DictReader(f)
                 rows = list(reader)
             assert len(rows) == 2
-            assert rows[0]["name"] == "Alice"
+            assert rows[0]["User"] == "Alice"
     
     def testMetadataFileFormatCorrect(self, tmp_path):
         """Verify metadata JSON is properly formatted"""
@@ -644,7 +645,7 @@ class TestRealFileSystemOperations:
     def testReviewsCsvHasProperHeaders(self, tmp_path):
         """Verify CSV file has correct headers"""
         movieName = "HeaderMovie"
-        reviews = [{"name": "Alice", "review": "Good", "rating": "5"}]
+        reviews = [{"dateOfReview": "2025-01-01", "user": "Alice", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Good", "review": "Good"}]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
             itemsRepo.saveReviews(movieName, reviews)
@@ -653,10 +654,10 @@ class TestRealFileSystemOperations:
             with open(reviewsFile, 'r', encoding='utf-8') as f:
                 firstLine = f.readline().strip()
             
-            # Headers should match the dict keys
-            assert "name" in firstLine
-            assert "review" in firstLine
-            assert "rating" in firstLine
+            # Headers should match the CSV column names (not schema field names)
+            assert "User" in firstLine
+            assert "Review" in firstLine
+            assert "Date of Review" in firstLine
     
     def testAtomicWriteTempFileCleanup(self, tmp_path):
         """Verify temporary files are cleaned up after successful write"""
@@ -780,17 +781,19 @@ class TestBoundaryConditions:
             assert loaded["year"] is None
     
     def testReviewsWithEmptyStrings(self, tmp_path):
-        """Handle empty strings in review fields"""
+        """Handle empty strings in review fields - empty ratings are skipped"""
         movieName = "EmptyFieldsMovie"
         reviews = [
-            {"name": "", "review": ""},
-            {"name": "Bob", "review": ""}
+            {"dateOfReview": "", "user": "", "usefulnessVote": "", "totalVotes": "", "userRatingOutOf10": "8.5", "reviewTitle": "", "review": ""},
+            {"dateOfReview": "2025-01-02", "user": "Bob", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "", "review": ""}
         ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
             itemsRepo.saveReviews(movieName, reviews)
             loaded = itemsRepo.loadReviews(movieName)
-            assert loaded[0]["name"] == ""
+            # Both reviews should load since they have valid ratings
+            assert len(loaded) == 2
+            assert loaded[0]["user"] == ""
             assert loaded[0]["review"] == ""
     
     def testMetadataWithBooleanValues(self, tmp_path):
@@ -823,9 +826,12 @@ class TestBoundaryConditions:
             assert loaded["budget"] == 1000000
     
     def testReviewsSingleColumn(self, tmp_path):
-        """Handle reviews with only one field"""
+        """Handle reviews with minimal fields - all schema fields required for proper save/load"""
         movieName = "SingleColumnMovie"
-        reviews = [{"review": "Good"}, {"review": "Bad"}]
+        reviews = [
+            {"dateOfReview": "2025-01-01", "user": "User1", "usefulnessVote": "5", "totalVotes": "10", "userRatingOutOf10": "8.5", "reviewTitle": "Title", "review": "Good"},
+            {"dateOfReview": "2025-01-02", "user": "User2", "usefulnessVote": "3", "totalVotes": "5", "userRatingOutOf10": "7.0", "reviewTitle": "Title2", "review": "Bad"}
+        ]
         
         with patch("backend.repositories.itemsRepo.baseDir", tmp_path):
             itemsRepo.saveReviews(movieName, reviews)

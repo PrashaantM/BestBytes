@@ -47,6 +47,23 @@ def changeUserStatus(username:str, status:bool, path):
         with open(path, 'w') as jsonFile:
             json.dump(data, jsonFile, indent=2)
 
+def saveVerificationToken(username: str, token: str, path: Path):
+    """Save verification token to the database"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    data = {}
+    if path.exists():
+        try:
+            with open(path, 'r') as jsonFile:
+                data = json.load(jsonFile)
+        except json.JSONDecodeError:
+            data = {}
+
+    if username in data:
+        data[username]["verificationToken"] = token
+        with open(path, 'w') as jsonFile:
+            json.dump(data, jsonFile, indent=2)
+
 
     
 
