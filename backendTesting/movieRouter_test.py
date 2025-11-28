@@ -175,6 +175,8 @@ class TestGetMovieByTitle:
         response = client.get("/Joker")
         assert response.status_code == 200
         assert response.json()["reviews"][0]["review"] == "Amazing movie!"
+
+
 DUMMY_REVIEW = {
     "dateOfReview": "2024-01-01",
     "user": "X",
