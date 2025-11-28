@@ -1,0 +1,12 @@
+<<<<<<< Updated upstream
+=======
+{
+  "admin": {
+    "email": "admin@bestbytes.com",
+    "password": "$2b$12$TLs8Ak35SwY6Y9saX98t0ePa3hS0wbMIhuAJFuCPb1MfsBbUEXmCi",
+    "isVerified": true,
+    "verificationToken": "e64d6ccc-e344-42c6-90a4-c2bde13997c6",
+    "isAdmin": true
+  }
+}
+>>>>>>> Stashed changes

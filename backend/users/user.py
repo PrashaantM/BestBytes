@@ -21,7 +21,7 @@ class User:
     sessionTimeout = timedelta(hours=24)  # Sessions expire after 24 hours
     path = Path(r"backend\data\Users\userList.json")
     
-    def __init__(self, username: str, email: str, password: str, save:bool = True):
+    def __init__(self, username: str, email: str, password: str, save:bool = True, isAdmin:bool = False):
         """Initialize a new user with validation"""
         self.id = str(uuid.uuid4())
 
@@ -59,11 +59,17 @@ class User:
         self.passwordHash = self.encryptPassword(password)
         self.isVerified = False  # Email verification status
         self.verificationToken = str(uuid.uuid4())
+        self.isAdmin = isAdmin  # Admin status
         self.createdAt = datetime.now()
         self.lastLogin = None
 
         if save:
+<<<<<<< Updated upstream
             saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, path=path)
+=======
+            saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, isAdmin=self.isAdmin, path=path)
+            saveVerificationToken(username=self.username, token=self.verificationToken, path=path)
+>>>>>>> Stashed changes
 
 
         

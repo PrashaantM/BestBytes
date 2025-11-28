@@ -24,7 +24,7 @@ DUMMY_REVIEW = {
 
 
 @pytest.fixture(autouse=True)
-def clear_memory():
+def clearMemory():
     """Reset in-memory reviews before each test."""
     movieReviews_memory.clear()
 
@@ -32,7 +32,7 @@ def clear_memory():
 class TestGetAllReviewsForMovie:
     """Tests for GET /{title}/reviews"""
 
-    def test_get_reviews_success(self, tmp_path, monkeypatch):
+    def testGetReviewsSuccess(self, tmp_path, monkeypatch):
         
         movie_dir = tmp_path / "Joker"
         movie_dir.mkdir()
@@ -49,14 +49,14 @@ class TestGetAllReviewsForMovie:
         assert response.status_code == 200
         assert response.json()[0]["reviewTitle"] == "Amazing!"
 
-    def test_get_reviews_movie_not_found(self, tmp_path, monkeypatch):
+    def testGetReviewsMovieNotFound(self, tmp_path, monkeypatch):
         monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
 
         response = client.get("/UnknownMovie/reviews")
         assert response.status_code == 404
         assert "not found" in response.json()["detail"]
 
-    def test_get_reviews_none_exist(self, tmp_path, monkeypatch):
+    def testGetReviewsNoneExist(self, tmp_path, monkeypatch):
         
         movie_dir = tmp_path / "Joker"
         movie_dir.mkdir()
@@ -72,7 +72,7 @@ class TestGetAllReviewsForMovie:
 class TestGetReviewsByUser:
     """Tests for GET /user/{username}"""
 
-    def test_get_user_reviews_success(self):
+    def testGetUserReviewsSuccess(self):
         movieReviews_memory["joker"] = [
             movieReviews(**DUMMY_REVIEW)
         ]
@@ -82,7 +82,7 @@ class TestGetReviewsByUser:
         assert len(response.json()) == 1
         assert response.json()[0]["user"] == "Khushi"
 
-    def test_get_user_reviews_case_insensitive(self):
+    def testGetUserReviewsCaseInsensitive(self):
         movieReviews_memory["joker"] = [
             movieReviews(**{**DUMMY_REVIEW, "user": "khushi"})
         ]
@@ -91,7 +91,7 @@ class TestGetReviewsByUser:
         assert response.status_code == 200
         assert response.json()[0]["user"].lower() == "khushi"
 
-    def test_get_user_reviews_across_multiple_movies(self):
+    def testGetUserReviewsAcrossMultipleMovies(self):
         movieReviews_memory["joker"] = [
             movieReviews(**DUMMY_REVIEW)
         ]
@@ -103,7 +103,7 @@ class TestGetReviewsByUser:
         assert response.status_code == 200
         assert len(response.json()) == 2
 
-    def test_get_user_reviews_not_found(self):
+    def testGetUserReviewsNotFound(self):
         response = client.get("/user/UnknownUser")
         assert response.status_code == 404
         assert response.json()["detail"] == "No reviews found for this user"
@@ -111,7 +111,7 @@ class TestGetReviewsByUser:
 class TestUpdateReview:
     """Tests for PUT /{title}/review/{index}"""
 
-    def test_update_review_success(self, tmp_path, monkeypatch):
+    def testUpdateReviewSuccess(self, tmp_path, monkeypatch):
         """User updates their own review successfully"""
 
         # create movie folder
@@ -149,7 +149,7 @@ class TestUpdateReview:
         assert body["review"] == "Still good!"
         assert body["user"] == "Khushi"          # MUST stay original user
 
-    def test_update_review_unauthenticated(self, tmp_path, monkeypatch):
+    def testUpdateReviewUnauthenticated(self, tmp_path, monkeypatch):
         """Missing/invalid token -> 401"""
 
         movie_dir = tmp_path / "Joker"
@@ -167,7 +167,7 @@ class TestUpdateReview:
         assert response.status_code == 401
         assert "Login required" in response.json()["detail"]
 
-    def test_update_review_not_found_index(self, tmp_path, monkeypatch):
+    def testUpdateReviewNotFoundIndex(self, tmp_path, monkeypatch):
         """Index exceeds list length -> 404"""
 
         movie_dir = tmp_path / "Joker"
@@ -186,7 +186,7 @@ class TestUpdateReview:
         assert response.status_code == 404
         assert response.json()["detail"] == "Review not found"
 
-    def test_update_review_wrong_user_forbidden(self, tmp_path, monkeypatch):
+    def testUpdateReviewWrongUserForbidden(self, tmp_path, monkeypatch):
         """User tries updating someone else's review -> 403"""
 
         movie_dir = tmp_path / "Joker"
@@ -208,7 +208,7 @@ class TestUpdateReview:
         assert response.status_code == 403
         assert "update others" in response.json()["detail"].lower()
 
-    def test_update_review_movie_not_found(self, tmp_path, monkeypatch):
+    def testUpdateReviewMovieNotFound(self, tmp_path, monkeypatch):
         """Movie folder does not exist -> 404"""
 
         monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
@@ -227,7 +227,7 @@ class TestUpdateReview:
 class TestDeleteReview:
     """Tests for DELETE /{title}/review/{index}"""
 
-    def test_delete_review_success(self, tmp_path, monkeypatch):
+    def testDeleteReviewSuccess(self, tmp_path, monkeypatch):
         """User deletes their own review -> success"""
 
         movie_dir = tmp_path / "Joker"
@@ -252,7 +252,7 @@ class TestDeleteReview:
         assert movieReviews_memory["joker"] == []
 
 
-    def test_delete_review_unauthenticated(self, tmp_path, monkeypatch):
+    def testDeleteReviewUnauthenticated(self, tmp_path, monkeypatch):
         """User not logged in -> 401"""
 
         movie_dir = tmp_path / "Joker"
@@ -273,7 +273,7 @@ class TestDeleteReview:
         assert response.json()["detail"] == "Login required to Delete Reviews"
 
 
-    def test_delete_review_movie_not_found(self, tmp_path, monkeypatch):
+    def testDeleteReviewMovieNotFound(self, tmp_path, monkeypatch):
         """Movie folder missing -> 404"""
 
         monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
@@ -290,7 +290,7 @@ class TestDeleteReview:
         assert "not found" in response.json()["detail"]
 
 
-    def test_delete_review_index_not_found(self, tmp_path, monkeypatch):
+    def testDeleteReviewIndexNotFound(self, tmp_path, monkeypatch):
         """Index out of range -> 404"""
 
         movie_dir = tmp_path / "Joker"
@@ -311,7 +311,7 @@ class TestDeleteReview:
         assert response.json()["detail"] == "Review not found"
 
 
-    def test_delete_review_wrong_user_forbidden(self, tmp_path, monkeypatch):
+    def testDeleteReviewWrongUserForbidden(self, tmp_path, monkeypatch):
         """User tries to delete someone else’s review -> 403"""
 
         movie_dir = tmp_path / "Joker"
@@ -334,7 +334,7 @@ class TestDeleteReview:
         assert response.status_code == 403
         assert response.json()["detail"] == "You can't delete others' reviews"
 
-    def test_delete_review_admin_override(self, tmp_path, monkeypatch):
+    def testDeleteReviewAdminOverride(self, tmp_path, monkeypatch):
         #Admin can delete any user's review (success)
 
         # movie folder
@@ -363,7 +363,7 @@ class TestDeleteReview:
         assert movieReviews_memory["joker"] == []
 
 
-    def test_delete_review_user_not_admin_forbidden(self, tmp_path, monkeypatch):
+    def testDeleteReviewUserNotAdminForbidden(self, tmp_path, monkeypatch):
         #Normal user tries to delete another user's review -> 403
 
         movie_dir = tmp_path / "Joker"
