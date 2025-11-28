@@ -9,7 +9,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import threading
 
-from backend.services.userServices import saveUserToDB, changeUserStatus
+from services.userServices import saveUserToDB, changeUserStatus
 
 
 

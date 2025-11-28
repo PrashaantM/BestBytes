@@ -1,7 +1,7 @@
 import uuid
 import threading
 from datetime import datetime
-from backend.schemas.user import user
+from users.user import user
 
 
 class admin(user):

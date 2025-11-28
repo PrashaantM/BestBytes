@@ -1,6 +1,6 @@
 import datetime
 import time
-from backend.users.user import User
+from .user import User
 
 class PenaltyPoints:
     #class variables: 
