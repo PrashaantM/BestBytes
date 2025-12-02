@@ -15,7 +15,9 @@ def registerUser(username: str, email: str, password: str):
             "message": "Account created successfully!",
             "username": newUser.username,
             "email": newUser.email,
-            "verificationToken": newUser.verificationToken
+            "verificationToken": newUser.verificationToken,
+            "warning": "⚠️ IMPORTANT: Save your verification token! You must verify your account before logging in. If you lose this token, your account cannot be verified.",
+            "instructions": "Use the /users/verify endpoint with your username and this token to verify your account."
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
