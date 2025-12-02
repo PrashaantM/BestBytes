@@ -30,6 +30,10 @@ def loadAllMovies() -> List[movie]:
                 movies.append(movie(**data))
     return movies
 
+# Backwards-compatible name expected by tests
+def load_all_movies() -> List[movie]:
+    return loadAllMovies()
+
 # list all movies
 
 # DATA_PATH is correct
