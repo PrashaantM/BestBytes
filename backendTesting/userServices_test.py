@@ -25,7 +25,7 @@ def test_saveUserToDB(mockBaseDir):
     #If we call this function, we should be able to find the specific user created
     mockBaseDir.mkdir(parents=True, exist_ok=True)
     path = mockBaseDir/"userList.json"
-    saveUserToDB(testUser.username,testUser.email,testUser.passwordHash,path)
+    saveUserToDB(testUser.username,testUser.email,testUser.passwordHash,False,path)
     with open(path,'r') as jsonFile:
         try:
             data = json.load(jsonFile) 
@@ -44,7 +44,7 @@ def test_ChangeUser(mockBaseDir):
     #If we call this function, we should be able to find the specific user created
     mockBaseDir.mkdir(parents=True, exist_ok=True)
     path = mockBaseDir/"userList.json"
-    saveUserToDB(testUser.username,testUser.email,testUser.passwordHash,path)
+    saveUserToDB(testUser.username,testUser.email,testUser.passwordHash,False,path)
     changeUserStatus(testUser.username,True, path)
     with open(path,'r') as jsonFile:
         try:
@@ -64,10 +64,10 @@ def test_ChangeUser(mockBaseDir):
 def testFindUserInDB(mockBaseDir):
     mockBaseDir.mkdir(parents=True, exist_ok=True)
     path = mockBaseDir/"userList.json"
-    saveUserToDB(testUser.username,testUser.email,testUser.passwordHash,path)
-    saveUserToDB("testUser.username",testUser.email,testUser.passwordHash,path)
-    saveUserToDB("tester",testUser.email,testUser.passwordHash,path)
+    saveUserToDB(testUser.username,testUser.email,testUser.passwordHash,False,path)
+    saveUserToDB("testUser.username",testUser.email,testUser.passwordHash,False,path)
+    saveUserToDB("tester",testUser.email,testUser.passwordHash,False,path)
 
-    assert findUserInDB(testUser.username,path) == {"email":testUser.email,"password":testUser.passwordHash.decode('utf-8'),"isVerified": False}
+    assert findUserInDB(testUser.username,path) == {"email":testUser.email,"password":testUser.passwordHash.decode('utf-8'),"isVerified": False, "verificationToken": None, "isAdmin": False}
     with pytest.raises(ValueError):
         findUserInDB("notTester",path)

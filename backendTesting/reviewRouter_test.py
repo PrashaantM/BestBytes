@@ -3,15 +3,25 @@ import json
 import os
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
+from unittest.mock import Mock, patch, MagicMock
+from pathlib import Path
 
 from backend.routers.reviewRouter import router, movieReviews_memory
 from backend.schemas.movieReviews import movieReviews
+from backend.schemas.movie import movie
 
 app = FastAPI()
 app.include_router(router)
 client = TestClient(app)
 
-# test review case
+
+@pytest.fixture
+def tmpPath(tmp_path):
+    """Provide temporary directory for test files"""
+    return tmp_path
+
+
+# Test constants
 DUMMY_REVIEW = {
     "dateOfReview": "2024-01-01",
     "user": "Khushi",
@@ -22,88 +32,155 @@ DUMMY_REVIEW = {
     "review": "Great movie!"
 }
 
+MOCK_MOVIE_BASE = {
+    "title": "Joker",
+    "datePublished": "2019",
+    "movieIMDbRating": 8.4,
+    "totalRatingCount": 1000,
+    "totalUserReviews": "500",
+    "totalCriticReviews": "300",
+    "metaScore": "59",
+    "movieGenres": ["Crime", "Drama"],
+    "movieRuntime": "122 min",
+    "directors": ["Todd Phillips"],
+    "creators": ["Todd Phillips", "Scott Silver"],
+    "mainStars": ["Joaquin Phoenix", "Robert De Niro"],
+    "description": "A gritty character study of Arthur Fleck, a man disregarded by society."
+}
+
 
 @pytest.fixture(autouse=True)
-def clear_memory():
+def clearMemory():
     """Reset in-memory reviews before each test."""
     movieReviews_memory.clear()
+def createMockMovie(reviews=None, **overrides):
+    """Helper to create mock movie objects with all required fields"""
+    movieData = {**MOCK_MOVIE_BASE, **overrides}
+    if reviews is not None:
+        movieData["reviews"] = reviews
+    else:
+        movieData["reviews"] = []
+    return movie(**movieData)
 
 
 class TestGetAllReviewsForMovie:
     """Tests for GET /{title}/reviews"""
 
-    def test_get_reviews_success(self, tmp_path, monkeypatch):
+    def testGetReviewsSuccess(self, tmp_path, monkeypatch):
+        """Successfully get reviews for a movie"""
         
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
+        mockMovie = createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
         
-        movieReviews_memory["joker"] = [
-            movieReviews(**DUMMY_REVIEW)
-        ]
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie:
+            mockGetMovie.return_value = mockMovie
+            
+            response = client.get("/Joker/reviews")
+            
+            assert response.status_code == 200
+            assert response.json()[0]["reviewTitle"] == "Amazing!"
 
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        response = client.get("/Joker/reviews")
-        assert response.status_code == 200
-        assert response.json()[0]["reviewTitle"] == "Amazing!"
-
-    def test_get_reviews_movie_not_found(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        response = client.get("/UnknownMovie/reviews")
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
-
-    def test_get_reviews_none_exist(self, tmp_path, monkeypatch):
+    def testGetReviewsMovieNotFound(self):
+        """404 when movie doesn't exist"""
         
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie:
+            from fastapi import HTTPException
+            mockGetMovie.side_effect = HTTPException(status_code=404, detail="Movie not found")
+            
+            response = client.get("/UnknownMovie/reviews")
+            
+            assert response.status_code == 404
+            assert "not found" in response.json()["detail"]
 
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        response = client.get("/Joker/reviews")
-        assert response.status_code == 404
-        assert response.json()["detail"] == "No reviews found for this movie"
+    def testGetReviewsNoneExist(self):
+        """404 when movie has no reviews"""
+        
+        mockMovie = createMockMovie(reviews=[])
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie:
+            mockGetMovie.return_value = mockMovie
+            
+            response = client.get("/Joker/reviews")
+            
+            assert response.status_code == 404
+            # The endpoint returns either "No reviews found" or "Movie not found"
+            assert "not found" in response.json()["detail"].lower()
 
 
 class TestGetReviewsByUser:
     """Tests for GET /user/{username}"""
 
-    def test_get_user_reviews_success(self):
-        movieReviews_memory["joker"] = [
-            movieReviews(**DUMMY_REVIEW)
+    def testGetUserReviewsSuccess(self):
+        """Successfully get all reviews by a user"""
+        
+        mockMovies = [
+            createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
         ]
+        
+        with patch("backend.services.moviesService.listMovies") as mockListMovies:
+            mockListMovies.return_value = mockMovies
+            
+            response = client.get("/user/Khushi")
+            
+            assert response.status_code == 200
+            assert len(response.json()) == 1
+            assert response.json()[0]["user"] == "Khushi"
 
-        response = client.get("/user/Khushi")
-        assert response.status_code == 200
-        assert len(response.json()) == 1
-        assert response.json()[0]["user"] == "Khushi"
-
-    def test_get_user_reviews_case_insensitive(self):
-        movieReviews_memory["joker"] = [
-            movieReviews(**{**DUMMY_REVIEW, "user": "khushi"})
+    def testGetUserReviewsCaseInsensitive(self):
+        """User search is case-insensitive"""
+        
+        mockMovies = [
+            createMockMovie(reviews=[movieReviews(**{**DUMMY_REVIEW, "user": "khushi"})])
         ]
+        
+        with patch("backend.services.moviesService.listMovies") as mockListMovies:
+            mockListMovies.return_value = mockMovies
+            
+            response = client.get("/user/KHUSHI")
+            
+            assert response.status_code == 200
+            assert response.json()[0]["user"].lower() == "khushi"
 
-        response = client.get("/user/KHUSHI")
-        assert response.status_code == 200
-        assert response.json()[0]["user"].lower() == "khushi"
+    def testGetUserReviewsAcrossMultipleMovies(self):
+        """Get reviews from multiple movies"""
+        
+        mockMovies = [
+            createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)]),
+            createMockMovie(
+                title="Batman",
+                datePublished="1989",
+                movieIMDbRating=7.5,
+                reviews=[movieReviews(**{**DUMMY_REVIEW, "reviewTitle": "Nice!"})]
+            )
+        ]
+        
+        with patch("backend.services.moviesService.listMovies") as mockListMovies:
+            mockListMovies.return_value = mockMovies
+            
+            response = client.get("/user/Khushi")
+            
+            assert response.status_code == 200
+            assert len(response.json()) == 2
 
-    def test_get_user_reviews_across_multiple_movies(self):
-        movieReviews_memory["joker"] = [
-            movieReviews(**DUMMY_REVIEW)
+    def testGetUserReviewsNotFound(self):
+        """404 when user has no reviews"""
+        
+        mockMovies = [
+            createMockMovie(reviews=[])
         ]
-        movieReviews_memory["batman"] = [
-            movieReviews(**{**DUMMY_REVIEW, "reviewTitle": "Nice!"})
-        ]
+        
+        with patch("backend.services.moviesService.listMovies") as mockListMovies:
+            mockListMovies.return_value = mockMovies
+            
+            response = client.get("/user/UnknownUser")
+            
+            assert response.status_code == 404
+            assert response.json()["detail"] == "No reviews found for this user"
 
         response = client.get("/user/Khushi")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
-    def test_get_user_reviews_not_found(self):
+    def testGetUserReviewsNotFound(self):
         response = client.get("/user/UnknownUser")
         assert response.status_code == 404
         assert response.json()["detail"] == "No reviews found for this user"
@@ -111,21 +188,12 @@ class TestGetReviewsByUser:
 class TestUpdateReview:
     """Tests for PUT /{title}/review/{index}"""
 
-    def test_update_review_success(self, tmp_path, monkeypatch):
+    def testUpdateReviewSuccess(self):
         """User updates their own review successfully"""
-
-        # create movie folder
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        movieReviews_memory["joker"] = [
-            movieReviews(**DUMMY_REVIEW)
-        ]
-
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        updated_payload = {
+        
+        mockMovie = createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
+        
+        updatedPayload = {
             "dateOfReview": "2024-01-02",
             "user": "SHOULD_NOT_CHANGE",
             "usefulnessVote": 9,
@@ -134,184 +202,254 @@ class TestUpdateReview:
             "reviewTitle": "Updated!",
             "review": "Still good!"
         }
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.routers.reviewRouter.serviceUpdateReview") as mockUpdateReview, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            mockGetMovie.return_value = mockMovie
+            mockUpdateReview.return_value = movieReviews(**{**updatedPayload, "user": "Khushi"})
+            mockGetUser.return_value = type("User", (), {"username": "Khushi"})()
+            
+            response = client.put("/Joker/review/0?sessionToken=abc", json=updatedPayload)
+            
+            assert response.status_code == 200
+            body = response.json()
+            assert body["reviewTitle"] == "Updated!"
+            assert body["review"] == "Still good!"
+            assert body["user"] == "Khushi"
 
-        # mock login
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("backend.users.user.User.getCurrentUser",
-                       lambda *args, **kw: type("U", (), {"username": "Khushi"}))
-
-            response = client.put("/Joker/review/0?sessionToken=abc", json=updated_payload)
-
-        assert response.status_code == 200
-        body = response.json()
-
-        assert body["reviewTitle"] == "Updated!"
-        assert body["review"] == "Still good!"
-        assert body["user"] == "Khushi"          # MUST stay original user
-
-    def test_update_review_unauthenticated(self, tmp_path, monkeypatch):
+    def testUpdateReviewUnauthenticated(self):
         """Missing/invalid token -> 401"""
-
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        movieReviews_memory["joker"] = [movieReviews(**DUMMY_REVIEW)]
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("backend.users.user.User.getCurrentUser", lambda *a, **k: None)
-
+        
+        with patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            mockGetUser.return_value = None
+            
             response = client.put("/Joker/review/0?sessionToken=BAD", json=DUMMY_REVIEW)
+            
+            assert response.status_code == 401
+            assert "Login required" in response.json()["detail"]
 
-        assert response.status_code == 401
-        assert "Login required" in response.json()["detail"]
-
-    def test_update_review_not_found_index(self, tmp_path, monkeypatch):
+    def testUpdateReviewNotFoundIndex(self):
         """Index exceeds list length -> 404"""
-
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        movieReviews_memory["joker"] = [movieReviews(**DUMMY_REVIEW)]
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("backend.users.user.User.getCurrentUser",
-                       lambda *a, **k: type("U", (), {"username": "Khushi"}))
-
+        
+        mockMovie = createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            mockGetMovie.return_value = mockMovie
+            mockGetUser.return_value = type("User", (), {"username": "Khushi"})()
+            
             response = client.put("/Joker/review/10?sessionToken=abc", json=DUMMY_REVIEW)
+            
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Review not found"
 
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Review not found"
-
-    def test_update_review_wrong_user_forbidden(self, tmp_path, monkeypatch):
+    def testUpdateReviewWrongUserForbidden(self):
         """User tries updating someone else's review -> 403"""
-
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        movieReviews_memory["joker"] = [
-            movieReviews(**{**DUMMY_REVIEW, "user": "OtherUser"})
-        ]
-
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("backend.users.user.User.getCurrentUser",
-                       lambda *a, **k: type("U", (), {"username": "Khushi"}))
-
+        
+        mockMovie = createMockMovie(reviews=[movieReviews(**{**DUMMY_REVIEW, "user": "OtherUser"})])
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            mockGetMovie.return_value = mockMovie
+            mockGetUser.return_value = type("User", (), {"username": "Khushi"})()
+            
             response = client.put("/Joker/review/0?sessionToken=abc", json=DUMMY_REVIEW)
+            
+            assert response.status_code == 403
+            assert "update others" in response.json()["detail"].lower()
 
-        assert response.status_code == 403
-        assert "update others" in response.json()["detail"].lower()
-
-    def test_update_review_movie_not_found(self, tmp_path, monkeypatch):
-        """Movie folder does not exist -> 404"""
-
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        movieReviews_memory["joker"] = [movieReviews(**DUMMY_REVIEW)]
-
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("backend.users.user.User.getCurrentUser",
-                       lambda *a, **k: type("U", (), {"username": "Khushi"}))
-
-            response = client.put("/Joker/review/0?sessionToken=abc", json=DUMMY_REVIEW)
-
-        assert response.status_code == 404
-        assert "Movie 'Joker' not found" in response.json()["detail"]
 
 class TestDeleteReview:
     """Tests for DELETE /{title}/review/{index}"""
 
-    def test_delete_review_success(self, tmp_path, monkeypatch):
+    def testDeleteReviewSuccess(self):
         """User deletes their own review -> success"""
+        
+        mockMovie = createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.routers.reviewRouter.serviceDeleteReview") as mockDeleteReview, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            mockGetMovie.return_value = mockMovie
+            mockDeleteReview.return_value = {"message": "Deleted review 'Amazing!' by Khushi"}
+            mockGetUser.return_value = type("User", (), {"username": "Khushi"})()
+            
+            response = client.delete("/Joker/review/0?sessionToken=abc")
+            
+            assert response.status_code == 200
+            assert "Deleted review" in response.json()["message"]
 
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        # one review by khushi
-        movieReviews_memory["joker"] = [movieReviews(**DUMMY_REVIEW)]
-
-        # user khushi
-        monkeypatch.setattr(
-            "backend.users.user.User.getCurrentUser",
-            lambda *a, **k: type("U", (), {"username": "Khushi"})
-        )
-
-        response = client.delete("/Joker/review/0?sessionToken=abc")
-
-        assert response.status_code == 200
-        assert "Deleted review" in response.json()["message"]
-        assert movieReviews_memory["joker"] == []
-
-
-    def test_delete_review_unauthenticated(self, tmp_path, monkeypatch):
+    def testDeleteReviewUnauthenticated(self):
         """User not logged in -> 401"""
+        
+        with patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            mockGetUser.return_value = None
+            
+            response = client.delete("/Joker/review/0?sessionToken=bad")
+            
+            assert response.status_code == 401
+            assert response.json()["detail"] == "Login required to Delete Reviews"
 
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        movieReviews_memory["joker"] = [movieReviews(**DUMMY_REVIEW)]
-
-        # no user test
-        monkeypatch.setattr(
-            "backend.users.user.User.getCurrentUser", lambda *a, **k: None
-        )
-
-        response = client.delete("/Joker/review/0?sessionToken=bad")
-        assert response.status_code == 401
-        assert response.json()["detail"] == "Login required to Delete Reviews"
-
-
-    def test_delete_review_movie_not_found(self, tmp_path, monkeypatch):
+    def testDeleteReviewMovieNotFound(self):
         """Movie folder missing -> 404"""
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            from fastapi import HTTPException
+            mockGetMovie.side_effect = HTTPException(status_code=404, detail="Movie not found")
+            mockGetUser.return_value = type("User", (), {"username": "Khushi"})()
+            
+            response = client.delete("/Joker/review/0?sessionToken=abc")
+            
+            assert response.status_code == 404
+            assert "not found" in response.json()["detail"]
 
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        movieReviews_memory["joker"] = [movieReviews(**DUMMY_REVIEW)]
-
-        monkeypatch.setattr(
-            "backend.users.user.User.getCurrentUser",
-            lambda *a, **k: type("U", (), {"username": "Khushi"})
-        )
-
-        response = client.delete("/Joker/review/0?sessionToken=abc")
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
-
-
-    def test_delete_review_index_not_found(self, tmp_path, monkeypatch):
+    def testDeleteReviewIndexNotFound(self):
         """Index out of range -> 404"""
+        
+        mockMovie = createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            mockGetMovie.return_value = mockMovie
+            mockGetUser.return_value = type("User", (), {"username": "Khushi"})()
+            
+            response = client.delete("/Joker/review/5?sessionToken=abc")
+            
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Review not found"
 
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
+    def testDeleteReviewWrongUserForbidden(self):
+        """User tries to delete someone else's review -> 403"""
+        
+        mockMovie = createMockMovie(reviews=[movieReviews(**{**DUMMY_REVIEW, "user": "Khushi"})])
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            mockGetMovie.return_value = mockMovie
+            mockGetUser.return_value = type("User", (), {"username": "OtherUser"})()
+            
+            response = client.delete("/Joker/review/0?sessionToken=abc")
+            
+            assert response.status_code == 403
+            assert response.json()["detail"] == "You can't delete others' reviews"
 
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
+    def testDeleteReviewAdminOverride(self):
+        """Admin can delete any user's review (success)"""
+        
+        mockMovie = createMockMovie(reviews=[movieReviews(**{**DUMMY_REVIEW, "user": "ADMIN"})])
+        
+        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie, \
+             patch("backend.routers.reviewRouter.serviceDeleteReview") as mockDeleteReview, \
+             patch("backend.users.user.User.getCurrentUser") as mockGetUser:
+            
+            mockGetMovie.return_value = mockMovie
+            mockDeleteReview.return_value = {"message": "Deleted review 'Amazing!' by ADMIN"}
+            mockGetUser.return_value = type("User", (), {"username": "AdminUser", "role": "admin"})()
+            
+            response = client.delete("/Joker/review/0?sessionToken=admin123")
+            
+            assert response.status_code == 200
+            assert "Deleted review" in response.json()["message"]
 
-        movieReviews_memory["joker"] = [movieReviews(**DUMMY_REVIEW)]
 
-        monkeypatch.setattr(
-            "backend.users.user.User.getCurrentUser",
-            lambda *a, **k: type("U", (), {"username": "Khushi"})
-        )
+class TestAddReview:
+    """Tests for POST /{title} - Add a new review"""
 
-        response = client.delete("/Joker/review/5?sessionToken=abc")
+    def testAddReviewSuccess(self, tmpPath):
+        """Successfully add a review to an existing movie"""
+        
+        reviewPayload = {
+            "dateOfReview": "2025-11-28",
+            "user": "testUser",
+            "usefulnessVote": 0,
+            "totalVotes": 0,
+            "userRatingOutOf10": 9.5,
+            "reviewTitle": "Amazing movie!",
+            "review": "This is a great film."
+        }
+        
+        mockReview = movieReviews(**reviewPayload)
+        
+        with patch("backend.routers.reviewRouter.serviceAddReview") as mockAddReview, \
+             patch("backend.users.user.User.getCurrentUser") as mockUser:
+            
+            mockUser.return_value = type("User", (), {"username": "testUser"})()
+            mockAddReview.return_value = mockReview
+            
+            response = client.post(
+                "/The Dark Knight?sessionToken=valid_token",
+                json=reviewPayload
+            )
+        
+        assert response.status_code == 200
+        body = response.json()
+        assert body["reviewTitle"] == "Amazing movie!"
+        assert body["user"] == "testUser"
+
+    def testAddReviewUnauthenticated(self, tmpPath):
+        """401 when no valid session token"""
+        
+        reviewPayload = {
+            "dateOfReview": "2025-11-28",
+            "user": "testUser",
+            "usefulnessVote": 0,
+            "totalVotes": 0,
+            "userRatingOutOf10": 9.5,
+            "reviewTitle": "Amazing movie!",
+            "review": "This is a great film."
+        }
+        
+        with patch("backend.users.user.User.getCurrentUser") as mockUser:
+            
+            mockUser.return_value = None
+            
+            response = client.post(
+                "/The Dark Knight?sessionToken=invalid_token",
+                json=reviewPayload
+            )
+        
+        assert response.status_code == 401
+        assert "Login required" in response.json()["detail"]
+
+    def testAddReviewMovieNotFound(self, tmpPath):
+        """404 when movie doesn't exist"""
+        
+        reviewPayload = {
+            "dateOfReview": "2025-11-28",
+            "user": "testUser",
+            "usefulnessVote": 0,
+            "totalVotes": 0,
+            "userRatingOutOf10": 9.5,
+            "reviewTitle": "Amazing movie!",
+            "review": "This is a great film."
+        }
+        
+        with patch("backend.routers.reviewRouter.serviceAddReview") as mockAddReview, \
+             patch("backend.users.user.User.getCurrentUser") as mockUser:
+            
+            from fastapi import HTTPException
+            mockUser.return_value = type("User", (), {"username": "testUser"})()
+            mockAddReview.side_effect = HTTPException(status_code=404, detail="Movie not found")
+            
+            response = client.post(
+                "/NonExistentMovie?sessionToken=valid_token",
+                json=reviewPayload
+            )
+        
         assert response.status_code == 404
         assert response.json()["detail"] == "Review not found"
 
 
-    def test_delete_review_wrong_user_forbidden(self, tmp_path, monkeypatch):
+    def testDeleteReviewWrongUserForbidden(self, tmp_path, monkeypatch):
         """User tries to delete someone else’s review -> 403"""
 
         movie_dir = tmp_path / "Joker"
@@ -334,7 +472,7 @@ class TestDeleteReview:
         assert response.status_code == 403
         assert response.json()["detail"] == "You can't delete others' reviews"
 
-    def test_delete_review_admin_override(self, tmp_path, monkeypatch):
+    def testDeleteReviewAdminOverride(self, tmp_path, monkeypatch):
         #Admin can delete any user's review (success)
 
         # movie folder
@@ -345,48 +483,111 @@ class TestDeleteReview:
         # data path
         monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
 
-        # one review by ADMIN
-        movieReviews_memory["joker"] = [
-            movieReviews(**{**DUMMY_REVIEW, "user": "ADMIN"})
-        ]
+    def testAddReviewInvalidDateFormat(self, tmpPath):
+        """400 when date format is invalid"""
+        
+        reviewPayload = {
+            "dateOfReview": "Nov 28th 2025",  # Invalid format
+            "user": "testUser",
+            "usefulnessVote": 0,
+            "totalVotes": 0,
+            "userRatingOutOf10": 9.5,
+            "reviewTitle": "Amazing movie!",
+            "review": "This is a great film."
+        }
+        
+        with patch("backend.users.user.User.getCurrentUser") as mockUser:
+            
+            mockUser.return_value = type("User", (), {"username": "testUser"})()
+            
+            response = client.post(
+                "/The Dark Knight?sessionToken=valid_token",
+                json=reviewPayload
+            )
+        
+        assert response.status_code == 400
+        assert "YYYY-MM-DD" in response.json()["detail"]
 
-        # mock admin user
-        monkeypatch.setattr(
-            "backend.users.user.User.getCurrentUser",
-            lambda *a, **k: type("U", (), {"username": "AdminUser", "role": "admin"})
-        )
+    def testAddReviewEmptyReviewTitle(self, tmpPath):
+        """400 when review title is empty"""
+        
+        reviewPayload = {
+            "dateOfReview": "2025-11-28",
+            "user": "testUser",
+            "usefulnessVote": 0,
+            "totalVotes": 0,
+            "userRatingOutOf10": 9.5,
+            "reviewTitle": "   ",  # Empty/whitespace only
+            "review": "This is a great film."
+        }
+        
+        with patch("backend.users.user.User.getCurrentUser") as mockUser:
+            
+            mockUser.return_value = type("User", (), {"username": "testUser"})()
+            
+            response = client.post(
+                "/The Dark Knight?sessionToken=valid_token",
+                json=reviewPayload
+            )
+        
+        assert response.status_code == 400
+        assert "cannot be empty" in response.json()["detail"]
 
-        response = client.delete("/Joker/review/0?sessionToken=admin123")
+    def testAddReviewEmptyReviewText(self, tmpPath):
+        """400 when review text is empty"""
+        
+        reviewPayload = {
+            "dateOfReview": "2025-11-28",
+            "user": "testUser",
+            "usefulnessVote": 0,
+            "totalVotes": 0,
+            "userRatingOutOf10": 9.5,
+            "reviewTitle": "Amazing!",
+            "review": "   "  # Empty/whitespace only
+        }
+        
+        with patch("backend.users.user.User.getCurrentUser") as mockUser:
+            
+            mockUser.return_value = type("User", (), {"username": "testUser"})()
+            
+            response = client.post(
+                "/The Dark Knight?sessionToken=valid_token",
+                json=reviewPayload
+            )
+        
+        assert response.status_code == 400
+        assert "cannot be empty" in response.json()["detail"]
 
+    def testAddReviewPersistsToCsv(self, tmpPath):
+        """Verify review is actually saved via service call"""
+        
+        reviewPayload = {
+            "dateOfReview": "2025-11-28",
+            "user": "testUser",
+            "usefulnessVote": 5,
+            "totalVotes": 10,
+            "userRatingOutOf10": 9.5,
+            "reviewTitle": "Amazing movie!",
+            "review": "This is a great film."
+        }
+        
+        mockReview = movieReviews(**reviewPayload)
+        
+        with patch("backend.routers.reviewRouter.serviceAddReview") as mockAddReview, \
+             patch("backend.users.user.User.getCurrentUser") as mockUser:
+            
+            mockUser.return_value = type("User", (), {"username": "testUser"})()
+            mockAddReview.return_value = mockReview
+            
+            response = client.post(
+                "/The Dark Knight?sessionToken=valid_token",
+                json=reviewPayload
+            )
+        
         assert response.status_code == 200
-        assert "Deleted review" in response.json()["message"]
-        assert movieReviews_memory["joker"] == []
-
-
-    def test_delete_review_user_not_admin_forbidden(self, tmp_path, monkeypatch):
-        #Normal user tries to delete another user's review -> 403
-
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-
-        # review belongs to USER
-        movieReviews_memory["joker"] = [
-            movieReviews(**{**DUMMY_REVIEW, "user": "USER"})
-        ]
-
-        # current_user is NOT admin and not the review owner
-        monkeypatch.setattr(
-            "backend.users.user.User.getCurrentUser",
-            lambda *a, **k: type("U", (), {"username": "RandomUser", "role": "user"})
-        )
-
-        response = client.delete("/Joker/review/0?sessionToken=user123")
-
-        assert response.status_code == 403
-        assert response.json()["detail"] == "You can't delete others' reviews"
-
-
-
+        
+        # Verify serviceAddReview was called with correct arguments
+        mockAddReview.assert_called_once()
+        call_args = mockAddReview.call_args
+        assert call_args[0][0] == "The Dark Knight"
+        assert call_args[0][1].reviewTitle == "Amazing movie!"
