@@ -58,7 +58,7 @@ def logoutUser(sessionToken: str):
 @router.get("/me")
 def getCurrentUser(sessionToken: str):
     """Return the current logged-in user's details if session is valid."""
-    currentUser = User.getCurrentUser(sessionToken)
+    currentUser = User.getCurrentUser(User, sessionToken)
     if currentUser:
         return {
             "username": currentUser.username,

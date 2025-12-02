@@ -64,7 +64,7 @@ class User:
         self.lastLogin = None
 
         if save:
-            saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, path=path)
+            saveUserToDB(username=self.username, email=self.email, passwordHash=self.passwordHash, isAdmin=self.isAdmin, path=path)
             saveVerificationToken(username=self.username, token=self.verificationToken, path=path)
 
 
