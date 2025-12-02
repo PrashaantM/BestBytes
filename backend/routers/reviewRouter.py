@@ -176,25 +176,25 @@ def deleteReview(title: str, index: int, sessionToken: str = Query(...)):
     currentUser = User.getCurrentUser(User, sessionToken)
     if not currentUser:
         raise HTTPException(status_code=401, detail="Login required to Delete Reviews")
+    # Use service to fetch movie and validate index consistently with tests
+    try:
+        movie_obj = getMovieByName(title)
+    except HTTPException as e:
+        # Propagate movie not found or other errors
+        raise e
 
-    movie_folder = os.path.join(DATA_PATH, title)
-    if not os.path.exists(movie_folder):
-        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
-    
-    # Get the list of reviews
-    reviews = movieReviews_memory.get(title.lower(), [])
-    if not reviews or index >= len(reviews):
+    if index < 0 or index >= len(movie_obj.reviews):
         raise HTTPException(status_code=404, detail="Review not found")
-    
-    review_to_remove = reviews[index]
-    # Allow deletion if current_user is the creator or is an admin
-    if (current_user.username.lower() != review_to_remove.user.lower() 
-            and getattr(current_user, "role", None) != "admin"):
+
+    review_to_remove = movie_obj.reviews[index]
+    # Allow deletion if current user is the creator or is an admin
+    if (currentUser.username.lower() != review_to_remove.user.lower()
+            and getattr(currentUser, "role", None) != "admin"):
         raise HTTPException(status_code=403, detail="You can't delete others' reviews")
-   
-    removed = reviews.pop(index)
-    movieReviews_memory[title.lower()] = reviews
-    return {"message": f"Deleted review '{removed.reviewTitle}' by {removed.user}"}
+
+    # Delegate deletion to service layer (repository persistence/memory handled there)
+    result = serviceDeleteReview(title, index)
+    return result
 
 
 # leaderboard endpoints
