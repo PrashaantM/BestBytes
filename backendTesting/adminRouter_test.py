@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from unittest.mock import patch, MagicMock, mock_open
 from backend.schemas.movie import movieCreate
 from backend.users.user import User
+from datetime import datetime
 import pytest
 
 
@@ -48,11 +49,28 @@ def tempDataPath(tmp_path):
 
 @pytest.fixture
 def mockUserDb():
-    """Mock user database"""
+    """Mock user database and create admin user"""
     originalDb = User.usersDb.copy() if hasattr(User, 'usersDb') else {}
+    originalSessions = User.activeSessions.copy() if hasattr(User, 'activeSessions') else {}
     User.usersDb = {}
-    yield User.usersDb
+    User.activeSessions = {}
+    
+    # Create admin user
+    adminUser = User.__new__(User)
+    adminUser.username = "testadmin"
+    adminUser.email = "admin@test.com"
+    adminUser.isAdmin = True
+    adminUser.isVerified = True
+    User.usersDb["testadmin"] = adminUser
+    
+    # Create admin session
+    adminToken = "test-admin-token-123"
+    User.activeSessions[adminToken] = (adminUser, datetime.now())
+    
+    yield {"adminToken": adminToken, "adminUser": adminUser}
+    
     User.usersDb = originalDb
+    User.activeSessions = originalSessions
 
 
 @pytest.fixture(autouse=True)
@@ -67,12 +85,16 @@ def resetDataPath():
 class TestAddMovie:
     """Tests for POST /add-movie endpoint"""
     
-    def testAddMovieSuccess(self, tempDataPath, monkeypatch, validMoviePayload):
+    def testAddMovieSuccess(self, tempDataPath, monkeypatch, validMoviePayload, mockUserDb):
         """Successfully add a new movie"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
         
-        response = client.post("/add-movie", json=validMoviePayload)
+        response = client.post(
+            "/add-movie",
+            json=validMoviePayload,
+            headers={"session-token": mockUserDb["adminToken"]}
+        )
         
         assert response.status_code == 200
         data = response.json()
@@ -92,7 +114,7 @@ class TestAddMovie:
         assert metadata["title"] == "Test Movie"
         assert metadata["movieIMDbRating"] == 8.5
     
-    def testAddMovieAlreadyExists(self, tempDataPath, monkeypatch, validMoviePayload):
+    def testAddMovieAlreadyExists(self,  tempDataPath, monkeypatch, validMoviePayload, mockUserDb):
         """Returns 400 when movie already exists"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -101,12 +123,12 @@ class TestAddMovie:
         existingFolder = os.path.join(tempDataPath, "Test Movie")
         os.makedirs(existingFolder)
         
-        response = client.post("/add-movie", json=validMoviePayload)
+        response = client.post("/add-movie", json=validMoviePayload, headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 400
         assert response.json()["detail"] == "Movie already exists"
     
-    def testAddMovieInvalidDataMissingTitle(self):
+    def testAddMovieInvalidDataMissingTitle(self, mockUserDb):
         """Returns 422 for missing required fields"""
         payload = {
             "movieIMDbRating": 8.5,
@@ -114,11 +136,11 @@ class TestAddMovie:
             # Missing title and other required fields
         }
         
-        response = client.post("/add-movie", json=payload)
+        response = client.post("/add-movie", json=payload, headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 422
     
-    def testAddMovieInvalidDataWrongType(self):
+    def testAddMovieInvalidDataWrongType(self, mockUserDb):
         """Returns 422 for wrong data types"""
         payload = {
             "title": "Test Movie",
@@ -135,11 +157,11 @@ class TestAddMovie:
             "description": "Test description"
         }
         
-        response = client.post("/add-movie", json=payload)
+        response = client.post("/add-movie", json=payload, headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 422
     
-    def testAddMovieWithSpecialCharacters(self, tempDataPath, monkeypatch, validMoviePayload):
+    def testAddMovieWithSpecialCharacters(self,  tempDataPath, monkeypatch, validMoviePayload, mockUserDb):
         """Handles movie titles with special characters"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -148,11 +170,11 @@ class TestAddMovie:
         payload = validMoviePayload.copy()
         payload["title"] = "Movie The Sequel"
         
-        response = client.post("/add-movie", json=payload)
+        response = client.post("/add-movie", json=payload, headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 200
     
-    def testAddMovieEmptyTitle(self):
+    def testAddMovieEmptyTitle(self, mockUserDb):
         """Returns 422 for empty title"""
         payload = {
             "title": "",
@@ -169,17 +191,17 @@ class TestAddMovie:
             "description": "Test description"
         }
         
-        response = client.post("/add-movie", json=payload)
+        response = client.post("/add-movie", json=payload, headers={"session-token": mockUserDb["adminToken"]})
         
         # Depends on your schema validation
         assert response.status_code in [422, 400]
     
-    def testAddMovieMetadataFormat(self, tempDataPath, monkeypatch, validMoviePayload):
+    def testAddMovieMetadataFormat(self,  tempDataPath, monkeypatch, validMoviePayload, mockUserDb):
         """Verify metadata is saved with proper formatting"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
         
-        response = client.post("/add-movie", json=validMoviePayload)
+        response = client.post("/add-movie", json=validMoviePayload, headers={"session-token": mockUserDb["adminToken"]})
         assert response.status_code == 200
         
         metadataFile = os.path.join(tempDataPath, "Test Movie", "metadata.json")
@@ -190,14 +212,14 @@ class TestAddMovie:
         assert '    ' in content  # Should have 4-space indentation
         assert '\n' in content  # Should be formatted with newlines
     
-    def testAddMoviePermissionError(self, tempDataPath, monkeypatch, validMoviePayload):
+    def testAddMoviePermissionError(self,  tempDataPath, monkeypatch, validMoviePayload, mockUserDb):
         """Handles permission errors when creating directory"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
         
         # Patch at the module level where it's used
         with patch("backend.routers.adminRouter.os.makedirs", side_effect=PermissionError("Permission denied")):
-            response = client.post("/add-movie", json=validMoviePayload)
+            response = client.post("/add-movie", json=validMoviePayload, headers={"session-token": mockUserDb["adminToken"]})
             # Should return 500 error with proper error handling
             assert response.status_code == 500
             assert "Permission denied" in response.json()["detail"]
@@ -206,7 +228,7 @@ class TestAddMovie:
 class TestDeleteMovie:
     """Tests for DELETE /delete-movie/{title} endpoint"""
     
-    def testDeleteMovieSuccess(self, tempDataPath, monkeypatch):
+    def testDeleteMovieSuccess(self,  tempDataPath, monkeypatch, mockUserDb):
         """Successfully delete an existing movie"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -224,7 +246,7 @@ class TestDeleteMovie:
         with open(reviewsFile, 'w', encoding='utf-8') as f:
             f.write("Great movie!")
         
-        response = client.delete("/delete-movie/Movie To Delete")
+        response = client.delete("/delete-movie/Movie To Delete", headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 200
         data = response.json()
@@ -233,17 +255,17 @@ class TestDeleteMovie:
         # Verify folder was deleted
         assert not os.path.exists(movieFolder)
     
-    def testDeleteMovieNotFound(self, tempDataPath, monkeypatch):
+    def testDeleteMovieNotFound(self,  tempDataPath, monkeypatch, mockUserDb):
         """Returns 404 when movie doesn't exist"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
         
-        response = client.delete("/delete-movie/NonExistentMovie")
+        response = client.delete("/delete-movie/NonExistentMovie", headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 404
         assert response.json()["detail"] == "Movie not found"
     
-    def testDeleteMovieWithSpecialCharacters(self, tempDataPath, monkeypatch):
+    def testDeleteMovieWithSpecialCharacters(self,  tempDataPath, monkeypatch, mockUserDb):
         """Handles movie titles with special characters"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -253,12 +275,12 @@ class TestDeleteMovie:
         movieFolder = os.path.join(tempDataPath, movieTitle)
         os.makedirs(movieFolder)
         
-        response = client.delete(f"/delete-movie/{movieTitle}")
+        response = client.delete(f"/delete-movie/{movieTitle}", headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 200
         assert not os.path.exists(movieFolder)
     
-    def testDeleteMovieEmptyFolder(self, tempDataPath, monkeypatch):
+    def testDeleteMovieEmptyFolder(self,  tempDataPath, monkeypatch, mockUserDb):
         """Delete movie with no files in folder"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -266,12 +288,12 @@ class TestDeleteMovie:
         movieFolder = os.path.join(tempDataPath, "Empty Movie")
         os.makedirs(movieFolder)
         
-        response = client.delete("/delete-movie/Empty Movie")
+        response = client.delete("/delete-movie/Empty Movie", headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 200
         assert not os.path.exists(movieFolder)
     
-    def testDeleteMovieWithSubdirectories(self, tempDataPath, monkeypatch):
+    def testDeleteMovieWithSubdirectories(self,  tempDataPath, monkeypatch, mockUserDb):
         """Handles deletion of movies with subdirectories"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -284,7 +306,7 @@ class TestDeleteMovie:
         os.makedirs(subDir)
         
         # With error handling, this should return 500 error instead of raising
-        response = client.delete("/delete-movie/Movie With Subdir")
+        response = client.delete("/delete-movie/Movie With Subdir", headers={"session-token": mockUserDb["adminToken"]})
         
         # Should return 500 error because rmdir can't remove non-empty directories
         assert response.status_code == 500
@@ -292,7 +314,7 @@ class TestDeleteMovie:
         detail = response.json()["detail"].lower()
         assert "error" in detail or "permission" in detail or "unable" in detail
     
-    def testDeleteMoviePermissionError(self, tempDataPath, monkeypatch):
+    def testDeleteMoviePermissionError(self,  tempDataPath, monkeypatch, mockUserDb):
         """Handles permission errors when deleting"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -307,12 +329,12 @@ class TestDeleteMovie:
         
         # Patch at the module level where it's used
         with patch("backend.routers.adminRouter.os.remove", side_effect=PermissionError("Permission denied")):
-            response = client.delete("/delete-movie/Protected Movie")
+            response = client.delete("/delete-movie/Protected Movie", headers={"session-token": mockUserDb["adminToken"]})
             # Should return 500 error with proper error handling
             assert response.status_code == 500
             assert "Permission denied" in response.json()["detail"]
     
-    def testDeleteMovieUrlEncoding(self, tempDataPath, monkeypatch):
+    def testDeleteMovieUrlEncoding(self,  tempDataPath, monkeypatch, mockUserDb):
         """Handles URL-encoded movie titles"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
@@ -322,7 +344,7 @@ class TestDeleteMovie:
         os.makedirs(movieFolder)
         
         # URL encode the title
-        response = client.delete("/delete-movie/Movie%20With%20Spaces")
+        response = client.delete("/delete-movie/Movie%20With%20Spaces", headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 200
         assert not os.path.exists(movieFolder)
@@ -333,10 +355,10 @@ class TestAssignPenalty:
     
     def testAssignPenaltySuccess(self, mockUserDb):
         """Successfully assign penalty to existing user"""
-        # Create a mock user
-        mockUser = MagicMock()
-        mockUser.penalties = []
-        User.usersDb["testuser"] = mockUser
+        # Create a real user for penalty testing
+        testUser = User(username="penaltytest1", email="test@example.com", password="password123", save=False)
+        testUser.penaltyPointsList = []
+        User.usersDb["testuser"] = testUser
         
         response = client.post(
             "/penalty",
@@ -344,7 +366,8 @@ class TestAssignPenalty:
                 "username": "testuser",
                 "points": 10,
                 "reason": "Late return"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         assert response.status_code == 200
@@ -353,9 +376,9 @@ class TestAssignPenalty:
         assert data["totalPenalties"] == 1
         
         # Verify penalty was added
-        assert len(mockUser.penalties) == 1
-        assert mockUser.penalties[0]["points"] == 10
-        assert mockUser.penalties[0]["reason"] == "Late return"
+        assert len(testUser.penaltyPointsList) == 1
+        assert testUser.penaltyPointsList[0].points == 10
+        assert testUser.penaltyPointsList[0].reason == "Late return"
     
     def testAssignPenaltyUserNotFound(self, mockUserDb):
         """Returns 404 when user doesn't exist"""
@@ -365,7 +388,8 @@ class TestAssignPenalty:
                 "username": "nonexistent",
                 "points": 10,
                 "reason": "Test"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         assert response.status_code == 404
@@ -373,8 +397,9 @@ class TestAssignPenalty:
     
     def testAssignPenaltyFirstPenalty(self, mockUserDb):
         """Initializes penalties list if user doesn't have one"""
-        mockUser = MagicMock(spec=[])  # User without penalties attribute
-        User.usersDb["newuser"] = mockUser
+        newUser = User(username="penaltytest2", email="newuser@example.com", password="password123", save=False)
+        newUser.penaltyPointsList = []
+        User.usersDb["newuser"] = newUser
         
         response = client.post(
             "/penalty",
@@ -382,18 +407,19 @@ class TestAssignPenalty:
                 "username": "newuser",
                 "points": 5,
                 "reason": "First offense"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         assert response.status_code == 200
-        assert hasattr(mockUser, "penalties")
-        assert len(mockUser.penalties) == 1
+        assert hasattr(newUser, "penaltyPointsList")
+        assert len(newUser.penaltyPointsList) == 1
     
     def testAssignPenaltyMultiplePenalties(self, mockUserDb):
         """Add multiple penalties to same user"""
-        mockUser = MagicMock()
-        mockUser.penalties = []
-        User.usersDb["repeat_offender"] = mockUser
+        testUser = User(username="repeatuser", email="repeat@example.com", password="password123", save=False)
+        testUser.penaltyPointsList = []
+        User.usersDb["repeat_offender"] = testUser
         
         # First penalty
         response1 = client.post(
@@ -402,7 +428,8 @@ class TestAssignPenalty:
                 "username": "repeat_offender",
                 "points": 5,
                 "reason": "Late return"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         assert response1.status_code == 200
         
@@ -413,19 +440,20 @@ class TestAssignPenalty:
                 "username": "repeat_offender",
                 "points": 10,
                 "reason": "Damaged item"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         assert response2.status_code == 200
         
         data = response2.json()
         assert data["totalPenalties"] == 2
-        assert len(mockUser.penalties) == 2
+        assert len(testUser.penaltyPointsList) == 2
     
     def testAssignPenaltyZeroPoints(self, mockUserDb):
         """Allows zero penalty points (warning)"""
-        mockUser = MagicMock()
-        mockUser.penalties = []
-        User.usersDb["warned_user"] = mockUser
+        testUser = User(username="warneduser", email="warned@example.com", password="password123", save=False)
+        testUser.penaltyPointsList = []
+        User.usersDb["warned_user"] = testUser
         
         response = client.post(
             "/penalty",
@@ -433,11 +461,12 @@ class TestAssignPenalty:
                 "username": "warned_user",
                 "points": 0,
                 "reason": "Verbal warning"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         assert response.status_code == 200
-        assert mockUser.penalties[0]["points"] == 0
+        assert testUser.penaltyPointsList[0].points == 0
     
     def testAssignPenaltyNegativePoints(self, mockUserDb):
         """Handles negative penalty points"""
@@ -451,7 +480,8 @@ class TestAssignPenalty:
                 "username": "testuser",
                 "points": -5,
                 "reason": "Point reversal"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         # This depends on your validation - might accept or reject
@@ -459,9 +489,9 @@ class TestAssignPenalty:
     
     def testAssignPenaltyLongReason(self, mockUserDb):
         """Handles long penalty reasons"""
-        mockUser = MagicMock()
-        mockUser.penalties = []
-        User.usersDb["testuser"] = mockUser
+        testUser = User(username="longreason", email="longreason@example.com", password="password123", save=False)
+        testUser.penaltyPointsList = []
+        User.usersDb["testuser"] = testUser
         
         longReason = "A" * 1000
         
@@ -471,17 +501,18 @@ class TestAssignPenalty:
                 "username": "testuser",
                 "points": 10,
                 "reason": longReason
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         assert response.status_code == 200
-        assert mockUser.penalties[0]["reason"] == longReason
+        assert testUser.penaltyPointsList[0].reason == longReason
     
     def testAssignPenaltyEmptyReason(self, mockUserDb):
         """Handles empty penalty reason"""
-        mockUser = MagicMock()
-        mockUser.penalties = []
-        User.usersDb["testuser"] = mockUser
+        testUser = User(username="emptyreason", email="emptyreason@example.com", password="password123", save=False)
+        testUser.penaltyPointsList = []
+        User.usersDb["testuser"] = testUser
         
         response = client.post(
             "/penalty",
@@ -489,17 +520,18 @@ class TestAssignPenalty:
                 "username": "testuser",
                 "points": 10,
                 "reason": ""
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         assert response.status_code == 200
-        assert mockUser.penalties[0]["reason"] == ""
+        assert testUser.penaltyPointsList[0].reason == ""
     
     def testAssignPenaltySpecialCharactersUsername(self, mockUserDb):
         """Handles usernames with special characters"""
-        mockUser = MagicMock()
-        mockUser.penalties = []
-        User.usersDb["user@email.com"] = mockUser
+        testUser = User(username="useremail", email="user@email.com", password="password123", save=False)
+        testUser.penaltyPointsList = []
+        User.usersDb["user@email.com"] = testUser
         
         response = client.post(
             "/penalty",
@@ -507,7 +539,8 @@ class TestAssignPenalty:
                 "username": "user@email.com",
                 "points": 5,
                 "reason": "Test"
-            }
+            },
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         
         assert response.status_code == 200
@@ -522,12 +555,12 @@ class TestAssignPenalty:
 class TestIntegration:
     """Integration tests combining multiple endpoints"""
     
-    def testAddAndDeleteMovieWorkflow(self, tempDataPath, monkeypatch, validMoviePayload):
+    def testAddAndDeleteMovieWorkflow(self,  tempDataPath, monkeypatch, validMoviePayload, mockUserDb):
         """Complete workflow: add movie then delete it"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
         
-        addResponse = client.post("/add-movie", json=validMoviePayload)
+        addResponse = client.post("/add-movie", json=validMoviePayload, headers={"session-token": mockUserDb["adminToken"]})
         assert addResponse.status_code == 200
         
         # Verify it exists
@@ -535,27 +568,27 @@ class TestIntegration:
         assert os.path.exists(movieFolder)
         
         # Delete movie
-        deleteResponse = client.delete("/delete-movie/Test Movie")
+        deleteResponse = client.delete("/delete-movie/Test Movie", headers={"session-token": mockUserDb["adminToken"]})
         assert deleteResponse.status_code == 200
         
         # Verify it's gone
         assert not os.path.exists(movieFolder)
     
-    def testCannotDeleteNonexistentMovie(self, tempDataPath, monkeypatch):
+    def testCannotDeleteNonexistentMovie(self,  tempDataPath, monkeypatch, mockUserDb):
         """Cannot delete movie that was never added"""
         from backend.routers import adminRouter
         monkeypatch.setattr(adminRouter, "DATA_PATH", tempDataPath)
         
-        response = client.delete("/delete-movie/Never Added Movie")
+        response = client.delete("/delete-movie/Never Added Movie", headers={"session-token": mockUserDb["adminToken"]})
         
         assert response.status_code == 404
     
     def testMultipleUsersPenalties(self, mockUserDb):
         """Assign penalties to multiple users"""
-        user1 = MagicMock()
-        user1.penalties = []
-        user2 = MagicMock()
-        user2.penalties = []
+        user1 = User(username="user1", email="user1@example.com", password="password123", save=False)
+        user1.penaltyPointsList = []
+        user2 = User(username="user2", email="user2@example.com", password="password123", save=False)
+        user2.penaltyPointsList = []
         
         User.usersDb["user1"] = user1
         User.usersDb["user2"] = user2
@@ -563,19 +596,21 @@ class TestIntegration:
         # Assign to user1
         response1 = client.post(
             "/penalty",
-            params={"username": "user1", "points": 5, "reason": "Test1"}
+            params={"username": "user1", "points": 5, "reason": "Test1"},
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         assert response1.status_code == 200
         
         # Assign to user2
         response2 = client.post(
             "/penalty",
-            params={"username": "user2", "points": 10, "reason": "Test2"}
+            params={"username": "user2", "points": 10, "reason": "Test2"},
+            headers={"session-token": mockUserDb["adminToken"]}
         )
         assert response2.status_code == 200
         
         # Verify isolation
-        assert len(user1.penalties) == 1
-        assert len(user2.penalties) == 1
-        assert user1.penalties[0]["points"] == 5
-        assert user2.penalties[0]["points"] == 10
+        assert len(user1.penaltyPointsList) == 1
+        assert len(user2.penaltyPointsList) == 1
+        assert user1.penaltyPointsList[0].points == 5
+        assert user2.penaltyPointsList[0].points == 10
