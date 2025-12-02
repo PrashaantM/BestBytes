@@ -2,9 +2,10 @@ import os
 import json
 from fastapi import APIRouter, HTTPException
 from typing import List
-from backend.schemas.movie import movie
+from backend.schemas.movie import movie, movieFilter
 from backend.schemas.movieReviews import movieReviews, movieReviewsCreate
 from backend.users.user import User
+from backend.services.moviesService import searchMovies, addReview as serviceAddReview, getMovieByName
 
 router = APIRouter()
 
@@ -29,6 +30,10 @@ def loadAllMovies() -> List[movie]:
                 movies.append(movie(**data))
     return movies
 
+# Backwards-compatible name expected by tests
+def load_all_movies() -> List[movie]:
+    return loadAllMovies()
+
 # list all movies
 
 # DATA_PATH is correct
@@ -43,6 +48,13 @@ def getAllMovies():
     if not movies:
         raise HTTPException(status_code=404, detail="No movies found in data directory")
     return movies
+
+# search movies with filters
+@router.post("/search", response_model=List[movie])
+def search_movies(filters: movieFilter):
+    """Search for movies based on various filters like title, genres, directors, rating, and year."""
+    results = searchMovies(filters)
+    return results
 
 # get movie details
 
@@ -65,55 +77,36 @@ def getMovieByTitle(title: str):
         data["reviews"] = reviews
         return movie(**data)
 
-# add review
-
-# only works if user logs in first, otherwise will not add a review
-#created mock user for successful test
-
+# add a review for a movie (root path as tests expect)
 @router.post("/{title}/review", response_model=movieReviews)
-def addReview(title: str, review_data: movieReviewsCreate, sessionToken: str):
-
-    """Add a review"""
-
-    # ===========================
-    # ORIGINAL: user authentication
-    current_user = User.getCurrentUser(User, sessionToken)
-    if not current_user: 
+def add_review(title: str, reviewData: movieReviewsCreate, sessionToken: str):
+    """Add a review for a specific movie by title (expects root path)."""
+    currentUser = User.getCurrentUser(User, sessionToken)
+    if not currentUser:
         raise HTTPException(status_code=401, detail="Login required to review")
-    # ===========================
 
-    # check: movie exists
-    movie_folder = os.path.join(DATA_PATH, title)
-    if not os.path.exists(movie_folder):
+    # verify movie exists
+    try:
+        getMovieByName(title)
+    except HTTPException:
         raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
 
-    # check: review title and text are not empty
-    if not review_data.reviewTitle.strip() or not review_data.review.strip():
+    # date format validation
+    from datetime import datetime
+    try:
+        datetime.strptime(reviewData.dateOfReview, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid date format. Please use YYYY-MM-DD format (e.g., 2025-11-28)"
+        )
+
+    # non-empty title and body
+    if not reviewData.reviewTitle.strip() or not reviewData.review.strip():
         raise HTTPException(status_code=400, detail="Review title and text cannot be empty")
 
-    # check: prevent duplicate review by same user for the same movie
-    existing_reviews = movie_reviews_memory.get(title.lower(), [])
-    for r in existing_reviews:
-        if r.user.lower() == current_user.username.lower():
-            raise HTTPException(status_code=400, detail="You have already reviewed this movie")
-
-    # ===========================
-    # ORIGINAL: use the request body directly
-    review = movieReviews(**review_data.dict())
-    # ===========================
-
-    movie_reviews_memory.setdefault(title.lower(), []).append(review)
-    return review
-
-# Backward-compatible snake_case aliases for tests and existing imports
-def load_all_movies() -> List[movie]:
-    return loadAllMovies()
-
-def get_all_movies():
-    return getAllMovies()
-
-def get_movie_by_title(title: str):
-    return getMovieByTitle(title)
-
-def add_review(title: str, review_data: movieReviewsCreate, sessionToken: str):
-    return addReview(title, review_data, sessionToken)
+    # persist via service and update in-memory cache
+    saved = serviceAddReview(title, reviewData)
+    key = title.lower()
+    movie_reviews_memory.setdefault(key, []).append(saved)
+    return saved
