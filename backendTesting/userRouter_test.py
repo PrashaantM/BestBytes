@@ -268,7 +268,7 @@ class TestGetCurrentUser:
 
         self.dummy = DummyUser()
 
-        def fake_get_current_user(cls, token):
+        def fake_get_current_user(token):
             return self.dummy if token == "valid-token" else None
 
         self.patch = patch("backend.users.user.User.getCurrentUser", fake_get_current_user)

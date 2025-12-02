@@ -12,5 +12,19 @@
     "isVerified": false,
     "verificationToken": null,
     "isAdmin": false
+  },
+  "apitester": {
+    "email": "apitester@example.com",
+    "password": "",
+    "isVerified": true,
+    "verificationToken": null,
+    "isAdmin": false
+  },
+  "admin2": {
+    "email": "admin2@bestbytes.com",
+    "password": "$2b$12$35CGdWR38Ylcox1Z/Z5nru82Z1rGpHO9JepBj2PbSc8lfZ.Yk0jTe",
+    "isVerified": true,
+    "verificationToken": null,
+    "isAdmin": false
   }
 }

@@ -81,7 +81,7 @@ def getMovieByTitle(title: str):
 @router.post("/{title}/review", response_model=movieReviews)
 def add_review(title: str, reviewData: movieReviewsCreate, sessionToken: str):
     """Add a review for a specific movie by title (expects root path)."""
-    currentUser = User.getCurrentUser(User, sessionToken)
+    currentUser = User.getCurrentUser(sessionToken)
     if not currentUser:
         raise HTTPException(status_code=401, detail="Login required to review")
 

@@ -11,7 +11,7 @@ userMovieLists: Dict[str, Dict[str, List[str]]] = {}
 @router.post("/create")
 def createList(username: str, listName: str, sessionToken: str):
     """Create a new movie list for a user."""
-    current_user = User.getCurrentUser(User, sessionToken)
+    current_user = User.getCurrentUser(sessionToken)
     if not current_user:
         raise HTTPException(status_code=401, detail="Login required to Create Lists")
 
@@ -25,7 +25,7 @@ def createList(username: str, listName: str, sessionToken: str):
 @router.post("/add")
 def addMovieToList(username: str, listName: str, movieTitle: str, sessionToken: str):
     """Add a movie to a user's list."""
-    current_user = User.getCurrentUser(User, sessionToken)
+    current_user = User.getCurrentUser(sessionToken)
     if not current_user:
         raise HTTPException(status_code=401, detail="Login required to Add to Lists")
 
@@ -44,7 +44,7 @@ def addMovieToList(username: str, listName: str, movieTitle: str, sessionToken: 
 @router.get("/{username}")
 def viewAllLists(username: str, sessionToken: str):
     """Return all movie lists for a user."""
-    current_user = User.getCurrentUser(User, sessionToken)
+    current_user = User.getCurrentUser(sessionToken)
     if not current_user:
         raise HTTPException(status_code=401, detail="Login required to View Lists")
     if username.lower() not in userMovieLists or not userMovieLists[username.lower()]:
@@ -55,7 +55,7 @@ def viewAllLists(username: str, sessionToken: str):
 @router.delete("/remove")
 def removeMovieFromList(username: str, listName: str, movieTitle: str, sessionToken: str):
     """Remove a movie from a user's list."""
-    current_user = User.getCurrentUser(User, sessionToken)
+    current_user = User.getCurrentUser(sessionToken)
     if not current_user:
         raise HTTPException(status_code=401, detail="Login required to Delete Lists")
     if username.lower() not in userMovieLists:
@@ -72,7 +72,7 @@ def removeMovieFromList(username: str, listName: str, movieTitle: str, sessionTo
 @router.delete("/delete")
 def deleteList(username: str, listName: str, sessionToken: str):
     """Delete an entire movie list for a user."""
-    current_user = User.getCurrentUser(User, sessionToken)
+    current_user = User.getCurrentUser(sessionToken)
     if not current_user:
         raise HTTPException(status_code=401, detail="Login required to Delete Lists")
 
