@@ -11,6 +11,21 @@ app = FastAPI()
 app.include_router(router)
 client = TestClient(app)
 
+def loadAllMovies() -> List[movie]:
+    movies = []
+    for folder_name in os.listdir(DATA_PATH):
+        folder_path = os.path.join(DATA_PATH, folder_name)
+        metadata_file = os.path.join(folder_path, "metadata.json")
+
+        if os.path.isdir(folder_path) and os.path.exists(metadata_file):
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+                reviews = movie_reviews_memory.get(data["title"].lower(), [])
+                data["reviews"] = reviews
+                movies.append(movie(**data))
+    return movies
+
 # Example Joker metadata used everywhere in tests
 JOKER_METADATA = {
     "title": "Joker",
