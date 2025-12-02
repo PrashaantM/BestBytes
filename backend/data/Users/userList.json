@@ -1,1 +1,16 @@
-{}
+{
+  "testuser": {
+    "email": "test@example.com",
+    "password": "$2b$12$7mG/6FbrP21rGT3hJRr9D.5VG6MY2xCTBPxvutPwSk.CR9iY0HOYS",
+    "isVerified": false,
+    "verificationToken": null,
+    "isAdmin": true
+  },
+  "newuser": {
+    "email": "newuser@example.com",
+    "password": "$2b$12$EOo7wu3afnXMnEw5.DN9UewLsRzwwrvaS.y8./poAQGa0tZT4oc56",
+    "isVerified": false,
+    "verificationToken": null,
+    "isAdmin": false
+  }
+}

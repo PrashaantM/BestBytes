@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
             user.passwordHash = userData.get("password", "").encode("utf-8")
             user.isVerified = userData.get("isVerified", False)
             user.verificationToken = userData.get("verificationToken", "")
+            user.isAdmin = userData.get("isAdmin", False)
             user.penaltyPointsList = []
             user.createdAt = None
             user.lastLogin = None
@@ -39,6 +40,22 @@ async def lifespan(app: FastAPI):
             print(f"Error loading user {username}: {e}")
     
     print(f"Total users loaded: {len(User.usersDb)}")
+
+    # Create default admin if no admin exists
+    hasAdmin = any(user.isAdmin for user in User.usersDb.values())
+    if not hasAdmin:
+        print("No admin found. Creating default admin account...")
+        try:
+            adminUser = User(username="admin", email="admin@bestbytes.com", password="Admin123!", save=True, isAdmin=True)
+            User.usersDb["admin"] = adminUser
+            # Auto-verify the admin account
+            adminUser.isVerified = True
+            from backend.services.userServices import changeUserStatus
+            changeUserStatus("admin", True, Path("backend/data/Users/userList.json"))
+            print("Default admin created: username='admin', password='Admin123!'")
+        except Exception as e:
+            print(f"Error creating default admin: {e}")
+    
     yield
     # Cleanup (if needed)
     print("Shutting down...")

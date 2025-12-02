@@ -1,13 +1,100 @@
 import os
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
+from typing import Optional
+from pathlib import Path
 from backend.schemas.movie import movieCreate
 from backend.users.user import User
+from backend.users.penaltyPoints import PenaltyPoints
 
 router = APIRouter()
 
 # load data
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
+
+def verifyAdminSession(sessionToken: Optional[str]) -> User:
+    """Verify that the session token belongs to an admin user"""
+    if not sessionToken:
+        raise HTTPException(status_code=401, detail="Session token required")
+    
+    # Use getCurrentUser to validate session and get user
+    user = User.getCurrentUser(User, sessionToken)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    
+    if not user.isAdmin:
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    
+    return user
+
+@router.post("/promote")
+def promoteToAdmin(username: str, sessionToken: Optional[str] = Header(None, alias="session-token")):
+    """Promote a user to admin status (admin only)"""
+    # Verify caller is admin
+    verifyAdminSession(sessionToken)
+    
+    # Check if target user exists
+    if username not in User.usersDb:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    targetUser = User.usersDb[username]
+    
+    if targetUser.isAdmin:
+        raise HTTPException(status_code=400, detail="User is already an admin")
+    
+    # Promote user
+    targetUser.isAdmin = True
+    
+    # Update in database
+    path = Path("backend/data/Users/userList.json")
+    data = {}
+    if path.exists():
+        with open(path, 'r') as f:
+            data = json.load(f)
+    
+    if username in data:
+        data[username]["isAdmin"] = True
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+    
+    return {"message": f"User '{username}' promoted to admin"}
+
+@router.post("/demote")
+def demoteFromAdmin(username: str, sessionToken: Optional[str] = Header(None, alias="session-token")):
+    """Remove admin status from a user (admin only)"""
+    # Verify caller is admin
+    callerUser = verifyAdminSession(sessionToken)
+    
+    # Prevent self-demotion
+    if callerUser.username == username:
+        raise HTTPException(status_code=400, detail="Cannot demote yourself")
+    
+    # Check if target user exists
+    if username not in User.usersDb:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    targetUser = User.usersDb[username]
+    
+    if not targetUser.isAdmin:
+        raise HTTPException(status_code=400, detail="User is not an admin")
+    
+    # Demote user
+    targetUser.isAdmin = False
+    
+    # Update in database
+    path = Path("backend/data/Users/userList.json")
+    data = {}
+    if path.exists():
+        with open(path, 'r') as f:
+            data = json.load(f)
+    
+    if username in data:
+        data[username]["isAdmin"] = False
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+    
+    return {"message": f"User '{username}' demoted from admin"}
 
 # add new movie
 
@@ -17,8 +104,11 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
 # - In Swagger, provide all required movie fields in JSON.
 
 @router.post("/add-movie")
-def addMovie(movieData: movieCreate):
-    """Add a new movie folder and metadata file."""
+def addMovie(movieData: movieCreate, sessionToken: Optional[str] = Header(None, alias="session-token")):
+    """Add a new movie folder and metadata file (admin only)."""
+    # Verify caller is admin
+    verifyAdminSession(sessionToken)
+    
     folderPath = os.path.join(DATA_PATH, movieData.title)
     if os.path.exists(folderPath):
         raise HTTPException(status_code=400, detail="Movie already exists")
@@ -47,8 +137,11 @@ def addMovie(movieData: movieCreate):
 # - Swagger: Just input the movie title in the path.
 
 @router.delete("/delete-movie/{title}")
-def deleteMovie(title: str):
-    """Delete a movie folder and its metadata file."""
+def deleteMovie(title: str, sessionToken: Optional[str] = Header(None, alias="session-token")):
+    """Delete a movie folder and its metadata file (admin only)."""
+    # Verify caller is admin
+    verifyAdminSession(sessionToken)
+    
     folderPath = os.path.join(DATA_PATH, title)
     if not os.path.exists(folderPath):
         raise HTTPException(status_code=404, detail="Movie not found")
@@ -80,18 +173,24 @@ def deleteMovie(title: str):
 # - Make sure the user exists in User.usersDb before testing.
 
 @router.post("/penalty")
-def assignPenalty(username: str, points: int, reason: str):
-    """Assign penalty points to a user."""
+def assignPenalty(username: str, points: int, reason: str, sessionToken: Optional[str] = Header(None, alias="session-token")):
+    """Assign penalty points to a user (admin only)."""
+    # Verify caller is admin
+    verifyAdminSession(sessionToken)
+    
     if username not in User.usersDb:
         raise HTTPException(status_code=404, detail="User not found")
 
     user = User.usersDb[username]
 
-    if not hasattr(user, "penalties"):
-        user.penalties = []
-
-    user.penalties.append({"points": points, "reason": reason})
+    # Create a PenaltyPoints object (automatically adds to user's penaltyPointsList)
+    PenaltyPoints(points=points, user=user, reason=reason)
+    
+    # Calculate total active penalty points
+    totalPoints = user.totalPenaltyPoints()
+    
     return {
         "message": f"Assigned {points} penalty points to {username}",
-        "totalPenalties": len(user.penalties),
+        "totalPenaltyPoints": totalPoints,
+        "totalPenalties": len(user.penaltyPointsList),
     }

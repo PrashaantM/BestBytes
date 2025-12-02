@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from backend.routers.reviewRouter import router
+from backend.routers.reviewRouter import router, movieReviews_memory
 from backend.schemas.movieReviews import movieReviews
 from backend.schemas.movie import movie
 
@@ -49,6 +49,10 @@ MOCK_MOVIE_BASE = {
 }
 
 
+@pytest.fixture(autouse=True)
+def clearMemory():
+    """Reset in-memory reviews before each test."""
+    movieReviews_memory.clear()
 def createMockMovie(reviews=None, **overrides):
     """Helper to create mock movie objects with all required fields"""
     movieData = {**MOCK_MOVIE_BASE, **overrides}
@@ -62,7 +66,7 @@ def createMockMovie(reviews=None, **overrides):
 class TestGetAllReviewsForMovie:
     """Tests for GET /{title}/reviews"""
 
-    def testGetReviewsSuccess(self):
+    def testGetReviewsSuccess(self, tmp_path, monkeypatch):
         """Successfully get reviews for a movie"""
         
         mockMovie = createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
@@ -172,6 +176,14 @@ class TestGetReviewsByUser:
             assert response.status_code == 404
             assert response.json()["detail"] == "No reviews found for this user"
 
+        response = client.get("/user/Khushi")
+        assert response.status_code == 200
+        assert len(response.json()) == 2
+
+    def testGetUserReviewsNotFound(self):
+        response = client.get("/user/UnknownUser")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "No reviews found for this user"
 
 class TestUpdateReview:
     """Tests for PUT /{title}/review/{index}"""
@@ -434,7 +446,42 @@ class TestAddReview:
             )
         
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
+        assert response.json()["detail"] == "Review not found"
+
+
+    def testDeleteReviewWrongUserForbidden(self, tmp_path, monkeypatch):
+        """User tries to delete someone else’s review -> 403"""
+
+        movie_dir = tmp_path / "Joker"
+        movie_dir.mkdir()
+        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
+
+        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
+
+        movieReviews_memory["joker"] = [
+            movieReviews(**{**DUMMY_REVIEW, "user": "Khushi"})
+        ]
+
+        # not user's review
+        monkeypatch.setattr(
+            "backend.users.user.User.getCurrentUser",
+            lambda *a, **k: type("U", (), {"username": "OtherUser"})
+        )
+
+        response = client.delete("/Joker/review/0?sessionToken=abc")
+        assert response.status_code == 403
+        assert response.json()["detail"] == "You can't delete others' reviews"
+
+    def testDeleteReviewAdminOverride(self, tmp_path, monkeypatch):
+        #Admin can delete any user's review (success)
+
+        # movie folder
+        movie_dir = tmp_path / "Joker"
+        movie_dir.mkdir()
+        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
+
+        # data path
+        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
 
     def testAddReviewInvalidDateFormat(self, tmpPath):
         """400 when date format is invalid"""

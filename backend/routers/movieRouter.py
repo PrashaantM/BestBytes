@@ -15,7 +15,7 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
 movie_reviews_memory = {}
 
 # helper to load movies
-def load_all_movies() -> List[movie]:
+def loadAllMovies() -> List[movie]:
     movies = []
     for folder_name in os.listdir(DATA_PATH):
         folder_path = os.path.join(DATA_PATH, folder_name)
@@ -38,7 +38,7 @@ def load_all_movies() -> List[movie]:
 # Docker is mapping folder properly
 
 @router.get("/", response_model=List[movie])
-def get_all_movies():
+def getAllMovies():
     """Return all movies found in the /data directory."""
     movies = load_all_movies()
     if not movies:
@@ -59,7 +59,7 @@ def search_movies(filters: movieFilter):
 # No incorrect validation issues.
 
 @router.get("/{title}", response_model=movie)
-def get_movie_by_title(title: str):
+def getMovieByTitle(title: str):
     """Return one movie by its folder name (case-insensitive)."""
     movie_folder = os.path.join(DATA_PATH, title)
     metadata_path = os.path.join(movie_folder, "metadata.json")

@@ -4,7 +4,7 @@ from pathlib import Path
 
 USER_DATA_PATH = Path("backend/data/Users/userList.json")
 
-def saveUserToDB(username, email, passwordHash, path: Path):
+def saveUserToDB(username, email, passwordHash, isAdmin: bool, path: Path):
     """
     Save a single user into usersList.json
     """
@@ -23,7 +23,8 @@ def saveUserToDB(username, email, passwordHash, path: Path):
         "email": email,
         "password": passwordHash.decode("utf-8"),
         "isVerified": False,
-        "verificationToken": None  # Will be set during user creation
+        "verificationToken": None,  # Will be set during user creation
+        "isAdmin": isAdmin
     }
 
     with open(path, 'w') as jsonFile:
