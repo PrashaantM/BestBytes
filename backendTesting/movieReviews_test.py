@@ -40,14 +40,14 @@ def test_rating_not_number():
 
 def test_review_title_too_long():
     data = VALID_REVIEW.copy()
-    data["reviewTitle"] = "A" * 201   # 201 characters
+    data["reviewTitle"] = "A" * 501   # 501 characters
     with pytest.raises(ValidationError):
         movieReviews(**data)
 
 
 def test_review_title_max_length_allowed():
     data = VALID_REVIEW.copy()
-    data["reviewTitle"] = "A" * 200
+    data["reviewTitle"] = "A" * 500
     obj = movieReviews(**data)
     assert obj.reviewTitle == data["reviewTitle"]
 
@@ -56,14 +56,14 @@ def test_review_title_max_length_allowed():
 
 def test_review_body_too_long():
     data = VALID_REVIEW.copy()
-    data["review"] = "A" * 5001
+    data["review"] = "A" * 15001
     with pytest.raises(ValidationError):
         movieReviews(**data)
 
 
 def test_review_body_max_length():
     data = VALID_REVIEW.copy()
-    data["review"] = "A" * 5000
+    data["review"] = "A" * 15000
     obj = movieReviews(**data)
     assert obj.review == data["review"]
 

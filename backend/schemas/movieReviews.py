@@ -7,8 +7,8 @@ class movieReviews(BaseModel):
     usefulnessVote: int
     totalVotes: int
     userRatingOutOf10: float = Field(..., ge = 0, le =  10)
-    reviewTitle: str = Field(..., max_length = 200)
-    review: str = Field(..., max_length = 5000)
+    reviewTitle: str = Field(..., max_length = 500)
+    review: str = Field(..., max_length = 15000)
 
 class movieReviewsCreate(BaseModel):
     dateOfReview: str
@@ -16,8 +16,8 @@ class movieReviewsCreate(BaseModel):
     usefulnessVote: int
     totalVotes: int
     userRatingOutOf10: float = Field(..., ge = 0, le =  10)
-    reviewTitle: str = Field(..., max_length = 200)
-    review: str = Field(..., max_length = 5000)
+    reviewTitle: str = Field(..., max_length = 500)
+    review: str = Field(..., max_length = 15000)
 
 class movieReviewsUpdate(BaseModel):
     dateOfReview: str
@@ -25,5 +25,5 @@ class movieReviewsUpdate(BaseModel):
     usefulnessVote: int
     totalVotes: int
     userRatingOutOf10: float = Field(..., ge = 0, le =  10)
-    reviewTitle: str = Field(..., max_length = 200)
-    review: str = Field(..., max_length = 5000)
+    reviewTitle: str = Field(..., max_length = 500)
+    review: str = Field(..., max_length = 15000)
