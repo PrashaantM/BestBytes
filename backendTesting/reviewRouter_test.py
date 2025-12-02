@@ -78,16 +78,6 @@ class TestGetAllReviewsForMovie:
     def testGetReviewsMovieNotFound(self):
         """404 when movie doesn't exist"""
         
-        movie_dir = tmp_path / "Joker"
-        movie_dir.mkdir()
-        (movie_dir / "metadata.json").write_text("{}", encoding="utf-8")
-
-        monkeypatch.setattr("backend.routers.reviewRouter.DATA_PATH", str(tmp_path))
-        monkeypatch.setattr("backend.repositories.itemsRepo.baseDir", tmp_path)
-
-        response = client.get("/Joker/reviews")
-        assert response.status_code == 404
-        assert response.json()["detail"] == "No reviews found for this movie"
         with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie:
             from fastapi import HTTPException
             mockGetMovie.side_effect = HTTPException(status_code=404, detail="Movie not found")
