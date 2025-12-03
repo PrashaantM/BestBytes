@@ -6,12 +6,11 @@ from unittest.mock import patch
 from backend.routers.rouletteRouter import router
 from backend.schemas.roulette import RouletteRequest
 
-# Create test app and include roulette router
 app = FastAPI()
 app.include_router(router)
 client = TestClient(app)
 
-# Dummy movie metadata samples for mocking service layer
+# Dummy movie data (mock testing)
 MOCK_MOVIES = [
     {
         "title": "Forrest Gump",
@@ -83,7 +82,7 @@ class TestRouletteSpin:
         data = res.json()
 
         assert data["found"] is True
-        # Check if returned movie contains ANY of the selected genres
+        # Checking to see if the returned movie contains any of the selected genres
         assert any(g in ["Action", "Drama"] for g in data["movie"]["movieGenres"])
 
     @patch("backend.routers.rouletteRouter.spin_roulette")
