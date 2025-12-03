@@ -1,7 +1,11 @@
 import json
+import os
 from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
 from backend.app import app
+
+# Mock TMDB_API_KEY for all tests in this file
+os.environ.setdefault("TMDB_API_KEY", "test_api_key_for_testing")
 
 client = TestClient(app)
 
