@@ -1,14 +1,16 @@
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from typing import List
+from typing import List, Dict
 from fastapi import HTTPException
 import json
+import asyncio
 
 from schemas.movie import movie, movieCreate, movieUpdate, movieFilter
 from schemas.movieReviews import movieReviews, movieReviewsCreate, movieReviewsUpdate
 from repositories.itemsRepo import loadMetadata, loadReviews, saveMetadata, saveReviews
 from users import user
+from .tmdbService import search_tmdb, get_tmdb_movie_details
 
 baseDir = Path(__file__).resolve().parents[1] / "data" # basDir is now pointing to data folder 
 
@@ -116,7 +118,7 @@ def deleteReview(title: str, index: int) -> dict:
 
 
 def searchMovies(filters: movieFilter) -> List[movie]:
-    """Filter movies based on metadata only (ignoring reviews for now)."""
+    """Filter movies based on local metadata and optionally augment with TMDB results."""
     if not baseDir.exists():
         return []
 
@@ -165,6 +167,38 @@ def searchMovies(filters: movieFilter) -> List[movie]:
         if include:
             results.append(m)
 
+    # If title provided, also search TMDB and merge minimal results
+    try:
+        if filters.title:
+            tmdb_items: List[Dict] = asyncio.run(search_tmdb(filters.title, 1))
+            for t in tmdb_items:
+                try:
+                    mapped = movie(
+                        title=t.get("title") or "",
+                        movieIMDbRating=float(t.get("voteAverage") or 0.0),
+                        totalRatingCount=0,
+                        totalUserReviews="0",
+                        totalCriticReviews="0",
+                        metaScore="",
+                        movieGenres=[],
+                        directors=[],
+                        datePublished=(t.get("releaseDate") or ""),
+                        creators=[],
+                        mainStars=[],
+                        description="",
+                        reviews=[],
+                        posterUrl=t.get("posterUrl"),
+                        trailerUrl=t.get("trailerUrl")
+                    )
+                    # Avoid duplicate titles (case-insensitive)
+                    if not any(m.title.lower() == mapped.title.lower() for m in results):
+                        results.append(mapped)
+                except Exception:
+                    continue
+    except Exception:
+        # If TMDB fails, return local results only
+        pass
+
     return results
 
 def saveMovieList(list : List[movie], user: str, listName: str, path: Path):
@@ -188,6 +222,83 @@ def saveMovieList(list : List[movie], user: str, listName: str, path: Path):
     with open(path, 'w') as jsonFile:
         json.dump(data,jsonFile)
         jsonFile.close()
+
+
+async def importTmdbMovieByTitle(title: str) -> movie:
+    """
+    Search TMDB for a movie by title and import the first match to local storage.
+    Creates the movie folder, metadata.json, and empty reviews CSV.
+    Returns the created movie object.
+    Raises HTTPException if movie not found in TMDB.
+    """
+    # Search TMDB for the movie
+    tmdb_results = await search_tmdb(title, page=1)
+    
+    if not tmdb_results:
+        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found in TMDB")
+    
+    # Get the first result (best match)
+    first_result = tmdb_results[0]
+    tmdb_id = first_result.get("id")
+    
+    # Fetch full details including trailer
+    details = await get_tmdb_movie_details(tmdb_id)
+    
+    # Map TMDB data to our movie schema
+    movie_data = {
+        "title": details.get("title", title),
+        "movieIMDbRating": details.get("voteAverage", 0.0),
+        "totalRatingCount": 0,
+        "totalUserReviews": "0",
+        "totalCriticReviews": "0",
+        "metaScore": "",
+        "movieGenres": details.get("genres", []),
+        "directors": [],
+        "datePublished": details.get("releaseDate", ""),
+        "creators": [],
+        "mainStars": [],
+        "description": details.get("overview", ""),
+        "posterUrl": details.get("posterUrl"),
+        "trailerUrl": details.get("trailerUrl"),
+    }
+    
+    # Create the movie locally
+    movie_create = movieCreate(**movie_data)
+    saveMetadata(movie_create.title, movie_create.dict())
+    saveReviews(movie_create.title, [])
+    
+    return movie(**movie_data, reviews=[])
+
+
+def importTmdbMovieByTitleSync(title: str) -> movie:
+    """
+    Synchronous wrapper for importTmdbMovieByTitle.
+    Used in contexts where async/await is not available.
+    """
+    return asyncio.run(importTmdbMovieByTitle(title))
+
+
+def getOrImportMovie(title: str) -> movie:
+    """
+    Get a movie by title from local storage, or import from TMDB if not found.
+    Returns the movie object.
+    Raises HTTPException if movie not found locally or in TMDB.
+    """
+    movieDir = baseDir / title
+    
+    # If movie exists locally, return it
+    if movieDir.exists():
+        metadata = loadMetadata(title)
+        reviews = loadReviews(title)
+        if metadata:
+            return movie(**metadata, reviews=reviews)
+    
+    # Movie doesn't exist locally, try to import from TMDB
+    try:
+        return importTmdbMovieByTitleSync(title)
+    except HTTPException:
+        # Re-raise with appropriate message
+        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found locally or in TMDB")
         
 
 

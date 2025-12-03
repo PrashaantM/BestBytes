@@ -15,6 +15,7 @@ from backend.services.moviesService import (
     getMovieByName,
     updateReview as serviceUpdateReview,
     deleteReview as serviceDeleteReview,
+    getOrImportMovie,
 )
 
 router = APIRouter()
@@ -147,9 +148,11 @@ def addReview(title: str, reviewData: movieReviewsCreate, sessionToken: str = Qu
     # user authentication
     currentUser = User.getCurrentUser(sessionToken)
     if not currentUser:
-        raise HTTPException(status_code=401, detail="Login required to review")    # verify movie exists
+        raise HTTPException(status_code=401, detail="Login required to review")
+    
+    # verify movie exists locally, or import from TMDB if not found
     try:
-        getMovieByName(title)
+        getOrImportMovie(title)
     except HTTPException:
         # Tests expect a generic "Review not found" when movie is missing
         raise HTTPException(status_code=404, detail="Review not found")

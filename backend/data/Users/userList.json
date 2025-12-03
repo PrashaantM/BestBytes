@@ -38,5 +38,11 @@
     "password": "$2b$12$HEdkrqoMLXE8nbFC8E1WiegTCAm9sanWWGIqz8CTpwU.EgYSNAdK6",
     "isVerified": true,
     "verificationToken": "0682765a-ad20-4f32-a7b9-8d510f440660"
+  },
+  "filmfan": {
+    "email": "film@test.com",
+    "password": "$2b$12$rBZsLH5pWJGoUHXlhChhDepiwY1vbHLPBDnw9RmFSPOkwWJHtbEfu",
+    "isVerified": true,
+    "verificationToken": "c41d92b8-9220-4be8-8357-0ca71a3c5512"
   }
 }

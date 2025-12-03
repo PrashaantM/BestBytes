@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, List
 from backend.users.user import User
+from backend.services.moviesService import getOrImportMovie
 
 router = APIRouter()
 
@@ -36,6 +37,12 @@ def addMovieToList(username: str, listName: str, movieTitle: str, sessionToken: 
 
     if movieTitle in userMovieLists[username.lower()][listName]:
         raise HTTPException(status_code=400, detail="Movie already in list")
+
+    # Ensure movie exists locally (import from TMDB if needed)
+    try:
+        getOrImportMovie(movieTitle)
+    except HTTPException as e:
+        raise HTTPException(status_code=404, detail=f"Movie '{movieTitle}' not found locally or in TMDB")
 
     userMovieLists[username.lower()][listName].append(movieTitle)
     return {"message": f"Added '{movieTitle}' to list '{listName}'"}
