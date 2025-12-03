@@ -1,50 +1,41 @@
-import os
-import json
+from repositories.itemsRepo import loadMetadata, baseDir
 import random
-
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-
-
+import os
 
 def load_all_movies():
     movies = []
-    for movie_folder in os.listdir(DATA_DIR):
-        movie_path = os.path.join(DATA_DIR, movie_folder, "metadata.json")
-        if os.path.exists(movie_path):
-            try:
-                with open(movie_path, "r", encoding="utf-8") as f:
-                    metadata = json.load(f)
-                    movies.append(metadata)
-            except:
-                pass
+    for folder in os.listdir(baseDir):
+        meta = loadMetadata(folder)
+        if meta:
+            movies.append(meta)
     return movies
-
-
-
 
 def get_unique_genres():
     movies = load_all_movies()
     genre_set = set()
-    for movie in movies:
-        for g in movie.get("movieGenres", []):
+    for m in movies:
+        for g in m.get("movieGenres", []):
             genre_set.add(g)
     return sorted(list(genre_set))
 
-
-
-
-def get_random_movie(selected_genres):
+def spin_roulette(selected_genres):
     movies = load_all_movies()
+
     if not selected_genres:
         filtered = movies
     else:
-        filtered = [
-            m for m in movies if any(g in m.get("movieGenres", []) for g in selected_genres)
-        ]
+        # Keep movies that match ANY of the genres user selected
+        filtered = [m for m in movies if any(g in m.get("movieGenres", []) for g in selected_genres)]
 
     if not filtered:
-        return None
+        return {
+            "movie": {},
+            "found": False,
+            "message": "No movies found for selected genres"
+        }
 
-    choice = random.choice(filtered)
-    choice["durationMinutes"] = choice.get("duration")
-    return choice
+    chosen = random.choice(filtered)
+    return {
+        "movie": chosen,
+        "found": True
+    }
