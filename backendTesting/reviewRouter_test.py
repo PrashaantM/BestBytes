@@ -434,10 +434,12 @@ class TestAddReview:
         }
         
         with patch("backend.routers.reviewRouter.serviceAddReview") as mockAddReview, \
-             patch("backend.users.user.User.getCurrentUser") as mockUser:
+             patch("backend.users.user.User.getCurrentUser") as mockUser, \
+             patch("backend.routers.reviewRouter.getOrImportMovie") as mockGetMovie:
             
             from fastapi import HTTPException
             mockUser.return_value = type("User", (), {"username": "testUser"})()
+            mockGetMovie.side_effect = HTTPException(status_code=404, detail="Movie not found")
             mockAddReview.side_effect = HTTPException(status_code=404, detail="Movie not found")
             
             response = client.post(
