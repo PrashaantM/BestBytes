@@ -145,11 +145,9 @@ def addReview(title: str, reviewData: movieReviewsCreate, sessionToken: str = Qu
     """Add a review for a specific movie by title."""
 
     # user authentication
-    currentUser = User.getCurrentUser(User, sessionToken)
-    if not currentUser: 
-        raise HTTPException(status_code=401, detail="Login required to review")
-
-    # verify movie exists
+    currentUser = User.getCurrentUser(sessionToken)
+    if not currentUser:
+        raise HTTPException(status_code=401, detail="Login required to review")    # verify movie exists
     try:
         getMovieByName(title)
     except HTTPException:
@@ -210,9 +208,9 @@ def getReviewsByUser(username: str):
 @router.put("/{title}/review/{index}", response_model=movieReviews)
 def updateReview(title: str, index: int, updatedData: movieReviewsUpdate, sessionToken: str = Query(...)):
     """Update an existing review by index for a specific movie."""
-    currentUser = User.getCurrentUser(User, sessionToken)
+    currentUser = User.getCurrentUser(sessionToken)
     if not currentUser:
-        raise HTTPException(status_code=401, detail="Login required to Update Reviews")
+        raise HTTPException(status_code=401, detail="Login required to update review")
 
     try:
         movie_obj = getMovieByName(title)
@@ -233,7 +231,7 @@ def updateReview(title: str, index: int, updatedData: movieReviewsUpdate, sessio
 @router.delete("/{title}/review/{index}")
 def deleteReview(title: str, index: int, sessionToken: str = Query(...)):
     """Delete a review by index for a specific movie."""
-    currentUser = User.getCurrentUser(User, sessionToken)
+    currentUser = User.getCurrentUser(sessionToken)
     if not currentUser:
         raise HTTPException(status_code=401, detail="Login required to Delete Reviews")
     # Use service to fetch movie and validate index consistently with tests

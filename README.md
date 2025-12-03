@@ -15,23 +15,15 @@ docker build -t bestbytes-backend .
 
 uvicorn backend.app:app --reload
 
-## Admin Account
+## Admin Login
 
-The repository includes a persistent admin account committed to `backend/data/Users/userList.json`:
+- Username: `admin2`
+- Password: `Admin123!`
 
-- **Username**: `admin`
-- **Password**: `Admin123!`
-- **Email**: `admin@bestbytes.com`
-- **Status**: Verified and ready to use
+Login endpoint:
 
-This account persists across container restarts and can be used immediately after deployment.
+```
+POST /users/login?username=admin2&password=Admin123!
+```
 
-### Admin-only Endpoints
-
-- `POST /admin/promote` — Promote a user to admin
-  - Header: `session-token` (must belong to an admin session)
-  - Query param: `username`
-- `POST /admin/demote` — Demote an admin to a regular user
-  - Header: `session-token` (must belong to an admin session)
-  - Query param: `username`
-  - Note: Admins cannot demote themselves
+The response includes `sessionToken`, which you use for authenticated requests.

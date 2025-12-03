@@ -18,7 +18,7 @@ def verifyAdminSession(sessionToken: Optional[str]) -> User:
         raise HTTPException(status_code=401, detail="Session token required")
     
     # Use getCurrentUser to validate session and get user
-    user = User.getCurrentUser(User, sessionToken)
+    user = User.getCurrentUser(sessionToken)
     
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
