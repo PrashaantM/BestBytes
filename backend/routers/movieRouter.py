@@ -3,16 +3,12 @@ import json
 from fastapi import APIRouter, HTTPException
 from typing import List
 from backend.schemas.movie import movie, movieFilter
-from backend.schemas.movieReviews import movieReviews, movieReviewsCreate
-from backend.users.user import User
-from backend.services.moviesService import searchMovies, addReview as serviceAddReview, getMovieByName
+from backend.services.moviesService import searchMovies, getMovieByName
 
 router = APIRouter()
 
 # load data
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data")
-
-movie_reviews_memory = {}
 
 # helper to load movies
 def loadAllMovies() -> List[movie]:
@@ -24,9 +20,8 @@ def loadAllMovies() -> List[movie]:
         if os.path.isdir(folder_path) and os.path.exists(metadata_file):
             with open(metadata_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-
-                reviews = movie_reviews_memory.get(data["title"].lower(), [])
-                data["reviews"] = reviews
+                # Load reviews from reviewRouter's persistent storage
+                data["reviews"] = []
                 movies.append(movie(**data))
     return movies
 
@@ -73,40 +68,6 @@ def getMovieByTitle(title: str):
 
     with open(metadata_path, "r", encoding="utf-8") as f:
         data = json.load(f)
-        reviews = movie_reviews_memory.get(title.lower(), [])
-        data["reviews"] = reviews
+        # Load reviews from reviewRouter's persistent storage
+        data["reviews"] = []
         return movie(**data)
-
-# add a review for a movie (root path as tests expect)
-@router.post("/{title}/review", response_model=movieReviews)
-def add_review(title: str, reviewData: movieReviewsCreate, sessionToken: str):
-    """Add a review for a specific movie by title (expects root path)."""
-    currentUser = User.getCurrentUser(sessionToken)
-    if not currentUser:
-        raise HTTPException(status_code=401, detail="Login required to review")
-
-    # verify movie exists
-    try:
-        getMovieByName(title)
-    except HTTPException:
-        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
-
-    # date format validation
-    from datetime import datetime
-    try:
-        datetime.strptime(reviewData.dateOfReview, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid date format. Please use YYYY-MM-DD format (e.g., 2025-11-28)"
-        )
-
-    # non-empty title and body
-    if not reviewData.reviewTitle.strip() or not reviewData.review.strip():
-        raise HTTPException(status_code=400, detail="Review title and text cannot be empty")
-
-    # persist via service and update in-memory cache
-    saved = serviceAddReview(title, reviewData)
-    key = title.lower()
-    movie_reviews_memory.setdefault(key, []).append(saved)
-    return saved

@@ -2,7 +2,7 @@
   "testuser": {
     "email": "test@example.com",
     "password": "$2b$12$7mG/6FbrP21rGT3hJRr9D.5VG6MY2xCTBPxvutPwSk.CR9iY0HOYS",
-    "isVerified": false,
+    "isVerified": true,
     "verificationToken": null,
     "isAdmin": true
   },
@@ -22,9 +22,21 @@
   },
   "admin2": {
     "email": "admin2@bestbytes.com",
-    "password": "$2b$12$35CGdWR38Ylcox1Z/Z5nru82Z1rGpHO9JepBj2PbSc8lfZ.Yk0jTe",
+    "password": "$2b$12$jLrnAVm1n9huRV/JFvjgOukaH4X4eT9.E/Qx2.sgY.33v5hQ/Iq7K",
     "isVerified": true,
     "verificationToken": null,
     "isAdmin": false
+  },
+  "testdownload": {
+    "email": "test@download.com",
+    "password": "$2b$12$mon/G3ofbIdRS8dm61HE/.xrMqYXmyntatICNd8B84qFD2oGvA2PS",
+    "isVerified": true,
+    "verificationToken": "3f2ab966-5e6e-40c8-b9ef-e826b9d960dc"
+  },
+  "bhaydu": {
+    "email": "benhaydu87@gmail.com",
+    "password": "$2b$12$HEdkrqoMLXE8nbFC8E1WiegTCAm9sanWWGIqz8CTpwU.EgYSNAdK6",
+    "isVerified": true,
+    "verificationToken": "0682765a-ad20-4f32-a7b9-8d510f440660"
   }
 }
