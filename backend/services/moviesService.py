@@ -260,6 +260,8 @@ async def importTmdbMovieByTitle(title: str) -> movie:
         "description": details.get("overview", ""),
         "posterUrl": details.get("posterUrl"),
         "trailerUrl": details.get("trailerUrl"),
+        "seriesName": None, 
+        "seriesOrder": None,
     }
     
     # Create the movie locally
@@ -299,8 +301,57 @@ def getOrImportMovie(title: str) -> movie:
     except HTTPException:
         # Re-raise with appropriate message
         raise HTTPException(status_code=404, detail=f"Movie '{title}' not found locally or in TMDB")
-        
 
+
+def setMovieSeries(movieTitle: str, seriesName: str, seriesOrder: int) -> movie:
+    """
+    Assign a movie to a series with a specific order.
+    """
+    metadata = loadMetadata(movieTitle)
+    if not metadata:
+        raise HTTPException(status_code=404, detail=f"Movie '{movieTitle}' not found")
+
+    metadata["seriesName"] = seriesName
+    metadata["seriesOrder"] = seriesOrder
+
+    saveMetadata(movieTitle, metadata)
+    reviews = loadReviews(movieTitle)
+
+    return movie(**metadata, reviews=reviews)
+
+
+def getSeriesOfMovie(movieTitle: str) -> Dict:
+    """
+    Return the seriesName and seriesOrder of a movie.
+    """
+    metadata = loadMetadata(movieTitle)
+    if not metadata:
+        raise HTTPException(status_code=404, detail=f"Movie '{movieTitle}' not found")
+
+    return {
+        "seriesName": metadata.get("seriesName"),
+        "seriesOrder": metadata.get("seriesOrder")
+    }
+
+
+def getMoviesInSeries(seriesName: str) -> List[movie]:
+    """
+    Return all movies that belong to the given series, sorted by seriesOrder.
+    """
+    if not baseDir.exists():
+        return []
+
+    result = []
+    for movieFolder in baseDir.iterdir():
+        if movieFolder.is_dir():
+            metadata = loadMetadata(movieFolder.name)
+            if metadata and metadata.get("seriesName") == seriesName:
+                reviews = loadReviews(movieFolder.name)
+                result.append(movie(**metadata, reviews=reviews))
+
+    # Sort by order, put None last
+    result.sort(key=lambda m: (m.seriesOrder is None, m.seriesOrder))
+    return result
 
     
 
