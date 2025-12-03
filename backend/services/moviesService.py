@@ -264,7 +264,7 @@ async def importTmdbMovieByTitle(title: str) -> movie:
     
     # Create the movie locally
     movie_create = movieCreate(**movie_data)
-    saveMetadata(movie_create.title, movie_create.dict())
+    saveMetadata(movie_create.title, movie_create.model_dump())
     saveReviews(movie_create.title, [])
     
     return movie(**movie_data, reviews=[])
