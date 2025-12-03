@@ -2,6 +2,6 @@ services:
   backend:
     build: .
     ports:
-      - "8000:8000"
+    - "8000:8000"
     environment:
-      - PYTHONUNBUFFERED=1
+      - TMDB_API_KEY=${TMDB_API_KEY}

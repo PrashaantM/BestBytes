@@ -371,7 +371,8 @@ class TestSearchMovies:
         filters = movieFilter(title="Incep")
         
         with patch.object(movieServices, 'baseDir', mockBaseDir), \
-             patch.object(movieServices, 'loadMetadata', return_value=sampleMetadata):
+             patch.object(movieServices, 'loadMetadata', return_value=sampleMetadata), \
+             patch('backend.services.moviesService.search_tmdb', return_value=[]):
             
             result = searchMovies(filters)
             assert len(result) == 1
@@ -442,7 +443,8 @@ class TestSearchMovies:
         filters = movieFilter(title="NonExistent")
         
         with patch.object(movieServices, 'baseDir', mockBaseDir), \
-             patch.object(movieServices, 'loadMetadata', return_value=sampleMetadata):
+             patch.object(movieServices, 'loadMetadata', return_value=sampleMetadata), \
+             patch('backend.services.moviesService.search_tmdb', return_value=[]):
             
             result = searchMovies(filters)
             assert len(result) == 0

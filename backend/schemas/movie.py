@@ -16,6 +16,8 @@ class movie(BaseModel):
     mainStars: List[str]
     description: str = Field(..., max_length=500)
     reviews: List[movieReviews] = []
+    posterUrl: Optional[str] = None
+    trailerUrl: Optional[str] = None
 
 class movieCreate(BaseModel):
     title: str
@@ -30,6 +32,8 @@ class movieCreate(BaseModel):
     creators: List[str]
     mainStars: List[str]
     description: str = Field(..., max_length=500)
+    posterUrl: Optional[str] = None
+    trailerUrl: Optional[str] = None
 
 class movieUpdate(BaseModel):
     title: str
@@ -44,6 +48,8 @@ class movieUpdate(BaseModel):
     creators: List[str]
     mainStars: List[str]
     description: str = Field(..., max_length=500)
+    posterUrl: Optional[str] = None
+    trailerUrl: Optional[str] = None
 
 class movieFilter(BaseModel):
     """

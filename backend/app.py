@@ -7,7 +7,8 @@ from backend.routers import (
     userRouter,
     adminRouter,
     listsRouter,
-    downloadRouter
+    downloadRouter,
+    tmdbRouter
 )
 from backend.users.user import User
 from backend.services.userServices import readAllUsers
@@ -81,6 +82,7 @@ app.include_router(reviewRouter.router, prefix="/reviews", tags=["Reviews"])
 app.include_router(userRouter.router, prefix="/users", tags=["Users"])
 app.include_router(adminRouter.router, prefix="/admin", tags=["Admin"])
 app.include_router(listsRouter.router, prefix="/lists", tags=["Lists"])
+app.include_router(tmdbRouter.router, prefix="/movies", tags=["TMDB"])
 app.include_router(downloadRouter.router, prefix="/downloads", tags=["Downloads"])
 
 @app.get("/")

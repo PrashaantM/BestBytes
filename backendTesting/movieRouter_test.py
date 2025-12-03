@@ -193,13 +193,14 @@ class TestSearchMovies:
 
         monkeypatch.setattr("backend.services.moviesService.baseDir", tmp_path)
 
-        # Search for "joker" - should find "Joker" movie
-        response = client.post("/search", json={"title": "joker"})
-        assert response.status_code == 200
-        results = response.json()
-        assert len(results) == 1
-        assert results[0]["title"] == "Joker"
-
+        # Mock TMDB to return no results for pure local testing
+        with patch("backend.services.moviesService.search_tmdb", return_value=[]):
+            # Search for "joker" - should find "Joker" movie
+            response = client.post("/search", json={"title": "joker"})
+            assert response.status_code == 200
+            results = response.json()
+            assert len(results) == 1
+            assert results[0]["title"] == "Joker"
     def test_search_by_genre(self, tmp_path, monkeypatch):
         """Search should filter movies by genre"""
         # Create movies with different genres
