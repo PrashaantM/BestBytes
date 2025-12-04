@@ -12,7 +12,7 @@ def mockMovieReviews():
     return {
         "Inception": [
             movieReviews(
-                user="alice",
+                user="ben",
                 reviewText="Great movie!",
                 review="Great movie!",
                 reviewTitle="Loved it",
@@ -22,7 +22,7 @@ def mockMovieReviews():
                 totalVotes=10
             ),
             movieReviews(
-                user="bob",
+                user="prashaant",
                 reviewText="Not bad",
                 review="Not bad",
                 reviewTitle="Ok",
@@ -34,7 +34,7 @@ def mockMovieReviews():
         ],
         "The Shining": [
             movieReviews(
-                user="alice",
+                user="ben",
                 reviewText="Scary!",
                 review="Scary!",
                 reviewTitle="Terrifying",
@@ -46,7 +46,7 @@ def mockMovieReviews():
         ],
         "Interstellar": [
             movieReviews(
-                user="charlie",
+                user="khushi",
                 reviewText="Mind-blowing",
                 review="Mind-blowing",
                 reviewTitle="Epic",
@@ -143,7 +143,7 @@ class TestGetUserReviewHistory:
 
             mockDataFolder.iterdir.return_value = paths
 
-            resultingReview = service.getUserReviewHistory("alice")
+            resultingReview = service.getUserReviewHistory("ben")
 
             assert "Inception" in resultingReview
             assert "The Shining" in resultingReview
@@ -152,5 +152,45 @@ class TestGetUserReviewHistory:
             assert resultingReview["Inception"]["review"] == "Great movie!"
             assert resultingReview["Inception"]["metadata"] ==  mockMetadataMap["Inception"]
 
+            assert resultingReview["The Shining"]["review"] == "Scary!"
+            assert resultingReview["The Shining"]["metadata"] ==  mockMetadataMap["The Shining"]
 
+
+    def testUserHasNoReviews(self, service, mockMovieReviews, mockMetadataMap):
+        paths = [
+            mockPath("Inception"),
+            mockPath("The Shining"),
+            mockPath("Interstellar")
+        ]
+        with patch.object(service, "dataFolder") as mockDataFolder, \
+             patch('backend.services.movieRecommendationService.movieReviews_memory', mockMovieReviews), \
+             patch('backend.services.movieRecommendationService.loadMetadata', side_effect=lambda path:mockMetadataMap[path.name]):
+            
+            mockDataFolder.iterdir.return_value = paths
+            resultingReview = service.getUserReviewHistory("omkar")
+
+            assert resultingReview == {}
+
+class TestGetLikeGenres:
+    
+    def testGetLikeGenres(self, service, mockMovieReviews, mockMetadataMap):
+        paths = [
+            mockPath("Inception"),
+            mockPath("The Shining"),
+            mockPath("Interstellar")
+        ]
         
+        with patch.object(service, "dataFolder") as mockDataFolder, \
+            patch('backend.services.movieRecommendationService.movieReviews_memory', mockMovieReviews), \
+            patch('backend.services.movieRecommendationService.loadMetadata', side_effect=lambda path:mockMetadataMap[path.name]):
+            reviewList = {}
+            mockDataFolder.iterdir.return_value = paths
+
+            reviewList = service.getUserReviewHistory("ben")
+            likedGenres = service.getLikedGenres(reviewList)
+
+            assert "Sci-Fi" in likedGenres
+            assert "Action" in likedGenres
+            assert "Horror" in likedGenres
+            assert "Adventure" not in likedGenres
+            assert "Drama" not in likedGenres

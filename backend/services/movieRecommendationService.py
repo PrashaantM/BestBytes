@@ -4,6 +4,7 @@ from repositories.itemsRepo import loadMetadata
 from routers.reviewRouter import movieReviews_memory
 from typing import Dict, List, Any
 
+
 class MovieRecommendationService:
 
     def __init__(self):
@@ -27,6 +28,26 @@ class MovieRecommendationService:
                         }
                         userReviews[movie.name]["metadata"] = loadMetadata(movie)
         return userReviews
+    
+    def getLikedGenres(self,reviewList:Dict[str, Dict[str,Any]]) -> List[str]:
+        """Get list of genres from user's reviewed movies"""
+        genreCount = {}
+        for movieName in reviewList:
+            metadata = reviewList[movieName]["metadata"]
+            if reviewList[movieName]["userRatingOutOf10"] < 6:
+                continue  
+            genres = metadata.movieGenres
+            for genre in genres:
+                if genre in genreCount:
+                    genreCount[genre] += 1
+                else:
+                    genreCount[genre] = 1
+
+        # Sort genres by count and return top genres
+        sortedGenres = sorted(genreCount.items(), key=lambda x: x[1], reverse=True)
+        topGenres = [genre for genre, count in sortedGenres[:5]] 
+        return topGenres
+    
         
 
 
