@@ -37,7 +37,9 @@ def sampleMetadata():
         "metaScore": "85",
         "creators": ["Christopher Nolan"],
         "mainStars": ["Leonardo DiCaprio", "Tom Hardy"],
-        "description": "A thief who steals corporate secrets"
+        "description": "A thief who steals corporate secrets",
+        "seriesName": None,
+        "seriesOrder": None,
     }
 
 
