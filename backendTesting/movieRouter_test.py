@@ -201,12 +201,14 @@ class TestSearchMovies:
 
         # Mock TMDB to return no results for pure local testing
         with patch("backend.services.moviesService.search_tmdb", return_value=[]):
-            # Search for "joker" - should find "Joker" movie
+            # Search for "joker" - should find both movies (Joker by title, The Dark Knight by description)
             response = client.post("/search", json={"title": "joker"})
             assert response.status_code == 200
             results = response.json()
-            assert len(results) == 1
-            assert results[0]["title"] == "Joker"
+            assert len(results) == 2
+            titles = {r["title"] for r in results}
+            assert "Joker" in titles
+            assert "The Dark Knight" in titles
     def test_search_by_genre(self, tmp_path, monkeypatch):
         """Search should filter movies by genre"""
         # Create movies with different genres

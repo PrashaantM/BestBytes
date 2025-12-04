@@ -268,6 +268,7 @@ async function loadMovies(page = 1) {
 
 async function searchMovies() {
     const query = document.getElementById('searchInput').value.trim();
+    const searchField = document.getElementById('searchField').value;
     currentSearchQuery = query;
     
     if (!query) {
@@ -276,10 +277,15 @@ async function searchMovies() {
     }
 
     try {
+        const searchBody = { 
+            title: query,
+            searchField: searchField
+        };
+        
         const response = await fetch(`${API_URL}/movies/search`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: query })
+            body: JSON.stringify(searchBody)
         });
         const movies = await response.json();
         displayMovies(movies);
