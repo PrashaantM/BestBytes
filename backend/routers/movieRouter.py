@@ -199,9 +199,7 @@ async def getAllMovies(page: int = Query(1, ge=1, description="Page number (star
 @router.post("/search", response_model=List[movie])
 def search_movies(filters: movieFilter):
     """Search for movies based on various filters like title, genres, directors, rating, and year."""
-    print(f"DEBUG: Received search request - title: {filters.title}, searchField: {getattr(filters, 'searchField', 'NOT SET')}")
     results = searchMovies(filters)
-    print(f"DEBUG: Returning {len(results)} results")
     return results
 
 # get movie details

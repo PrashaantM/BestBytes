@@ -271,8 +271,6 @@ async function searchMovies() {
     const searchField = document.getElementById('searchField').value;
     currentSearchQuery = query;
     
-    console.log('Search - Query:', query, 'Field:', searchField);
-    
     if (!query) {
         loadMovies();
         return;
@@ -281,10 +279,8 @@ async function searchMovies() {
     try {
         const searchBody = { 
             title: query,
-            searchField: searchField  // Always send the search field
+            searchField: searchField
         };
-        
-        console.log('Sending search request:', searchBody);
         
         const response = await fetch(`${API_URL}/movies/search`, {
             method: 'POST',
@@ -292,7 +288,6 @@ async function searchMovies() {
             body: JSON.stringify(searchBody)
         });
         const movies = await response.json();
-        console.log('Received movies:', movies.length);
         displayMovies(movies);
         document.getElementById('prevPage').disabled = true;
         document.getElementById('nextPage').disabled = true;
