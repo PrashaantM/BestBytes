@@ -8,8 +8,10 @@ from backend.routers import (
     adminRouter,
     listsRouter,
     downloadRouter,
+    tmdbRouter, 
+    seriesRouter,
     tmdbRouter,
-    rouletteRouter
+    rouletteRouter,
 )
 from backend.users.user import User
 from backend.services.userServices import readAllUsers
@@ -85,6 +87,7 @@ app.include_router(adminRouter.router, prefix="/admin", tags=["Admin"])
 app.include_router(listsRouter.router, prefix="/lists", tags=["Lists"])
 app.include_router(tmdbRouter.router, prefix="/movies", tags=["TMDB"])
 app.include_router(downloadRouter.router, prefix="/downloads", tags=["Downloads"])
+app.include_router(seriesRouter.router, prefix="/series", tags=["Series"])
 app.include_router(rouletteRouter.router, prefix="/roulette", tags=["Roulette"])
 
 
