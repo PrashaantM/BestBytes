@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BestBytes - Movie Reviews</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🎬 BestBytes</h1>
+            <p class="tagline">Discover and Review Your Favorite Movies</p>
+        </header>
+
+        <!-- Auth Section -->
+        <div id="authSection" class="section">
+            <div class="auth-container">
+                <div class="auth-tabs">
+                    <button class="tab-btn active" onclick="showLogin()">Login</button>
+                    <button class="tab-btn" onclick="showRegister()">Register</button>
+                    <button class="tab-btn" onclick="showVerify()">Verify Account</button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="loginForm" class="auth-form">
+                    <h2>Login</h2>
+                    <input type="text" id="loginUsername" placeholder="Username" required>
+                    <input type="password" id="loginPassword" placeholder="Password" required>
+                    <button onclick="login()">Login</button>
+                    <p class="error" id="loginError"></p>
+                </div>
+
+                <!-- Register Form -->
+                <div id="registerForm" class="auth-form" style="display: none;">
+                    <h2>Register</h2>
+                    <input type="text" id="registerUsername" placeholder="Username" required>
+                    <input type="email" id="registerEmail" placeholder="Email" required>
+                    <input type="password" id="registerPassword" placeholder="Password" required>
+                    <button onclick="register()">Register</button>
+                    <p class="error" id="registerError"></p>
+                    <p class="success" id="registerSuccess"></p>
+                </div>
+
+                <!-- Verify Form -->
+                <div id="verifyForm" class="auth-form" style="display: none;">
+                    <h2>Verify Account</h2>
+                    <p class="info">Enter the verification token you received when you registered.</p>
+                    <input type="text" id="verifyUsername" placeholder="Username" required>
+                    <input type="text" id="verifyToken" placeholder="Verification Token" required>
+                    <button onclick="verifyAccount()">Verify</button>
+                    <p class="error" id="verifyError"></p>
+                    <p class="success" id="verifySuccess"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App Section (Hidden until logged in) -->
+        <div id="appSection" class="section" style="display: none;">
+            <!-- User Info -->
+            <div class="user-info">
+                <span id="welcomeMessage"></span>
+                <button onclick="logout()" class="btn-secondary">Logout</button>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="nav-tabs">
+                <button class="nav-btn active" onclick="showTab('movies')">Movies</button>
+                <button class="nav-btn" onclick="showTab('mylists')">My Lists</button>
+                <button class="nav-btn" onclick="showTab('roulette')">Movie Roulette</button>
+                <button class="nav-btn" onclick="showTab('series')">Series</button>
+                <button class="nav-btn" onclick="showTab('recommendations')">Recommendations</button>
+                <button class="nav-btn" onclick="showTab('profile')">Profile</button>
+                <button class="nav-btn admin-only" onclick="showTab('admin')" style="display: none;">Admin</button>
+            </div>
+
+            <!-- Movies Tab -->
+            <div id="moviesTab" class="tab-content">
+                <!-- Search Section -->
+                <div class="search-section">
+                    <h2>Search Movies</h2>
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" placeholder="Search by title, genre, or director...">
+                        <button onclick="searchMovies()">Search</button>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Section -->
+                <div class="leaderboard-section">
+                    <h2>🏆 Top Reviewers</h2>
+                    <div id="homeLeaderboard" class="leaderboard">
+                        <!-- Leaderboard will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Movies Grid -->
+                <div class="movies-section">
+                    <h2>Movies</h2>
+                    <div id="moviesGrid" class="movies-grid">
+                        <!-- Movies will be loaded here -->
+                    </div>
+                    <div class="pagination">
+                        <button id="prevPage" onclick="previousPage()" disabled>Previous</button>
+                        <span id="pageInfo">Page 1</span>
+                        <button id="nextPage" onclick="nextPage()">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Lists Tab -->
+            <div id="mylistsTab" class="tab-content" style="display: none;">
+                <h2>My Movie Lists</h2>
+                <div class="create-list-section">
+                    <input type="text" id="newListName" placeholder="New list name...">
+                    <button onclick="createList()">Create List</button>
+                </div>
+                <div id="userLists" class="lists-container">
+                    <!-- Lists will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Movie Roulette Tab -->
+            <div id="rouletteTab" class="tab-content" style="display: none;">
+                <h2>🎲 Movie Roulette</h2>
+                <p>Can't decide what to watch? Let us pick for you!</p>
+                <div class="roulette-section">
+                    <label for="rouletteGenre">Select Genre (optional):</label>
+                    <select id="rouletteGenre">
+                        <option value="">Any Genre</option>
+                    </select>
+                    <button onclick="spinRoulette()" class="btn-primary">🎲 Spin!</button>
+                </div>
+                <div id="rouletteResult" class="roulette-result"></div>
+            </div>
+
+            <!-- Series Tab -->
+            <div id="seriesTab" class="tab-content" style="display: none;">
+                <h2>📚 Movie Series</h2>
+                <div id="seriesContainer">
+                    <!-- Series will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Recommendations Tab -->
+            <div id="recommendationsTab" class="tab-content" style="display: none;">
+                <h2>✨ Recommended For You</h2>
+                <p>Based on your watch history and ratings</p>
+                <button onclick="loadRecommendations()">Get Recommendations</button>
+                <div id="recommendationsContainer" class="movies-grid">
+                    <!-- Recommendations will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            <div id="profileTab" class="tab-content" style="display: none;">
+                <h2>My Profile</h2>
+                <div id="profileStats" class="profile-stats">
+                    <!-- Stats will be loaded here -->
+                </div>
+                <h3>Download My Data</h3>
+                <div class="download-section">
+                    <button onclick="downloadMyReviews('json')">📥 Download Reviews (JSON)</button>
+                    <button onclick="downloadMyReviews('csv')">📥 Download Reviews (CSV)</button>
+                    <button onclick="downloadMyLists('json')">📥 Download Lists (JSON)</button>
+                    <button onclick="downloadMyLists('csv')">📥 Download Lists (CSV)</button>
+                </div>
+                <h3>Leaderboard</h3>
+                <div id="leaderboard" class="leaderboard">
+                    <!-- Leaderboard will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Admin Tab -->
+            <div id="adminTab" class="tab-content" style="display: none;">
+                <h2>⚙️ Admin Panel</h2>
+                
+                <!-- Admin Sub-Navigation -->
+                <div class="admin-tabs">
+                    <button class="admin-tab-btn active" onclick="showAdminSection('stats', event)">📊 Statistics</button>
+                    <button class="admin-tab-btn" onclick="showAdminSection('users', event)">👥 Users</button>
+                    <button class="admin-tab-btn" onclick="showAdminSection('movies', event)">🎬 Movies</button>
+                    <button class="admin-tab-btn" onclick="showAdminSection('series', event)">📚 Series</button>
+                    <button class="admin-tab-btn" onclick="showAdminSection('penalties', event)">⚠️ Penalties</button>
+                </div>
+
+                <!-- Statistics Section -->
+                <div id="adminStatsSection" class="admin-content-section">
+                    <h3>System Statistics</h3>
+                    <p style="color: #718096; margin-bottom: 15px;">Overview of all platform activity including user counts, movie library size, and review engagement metrics.</p>
+                    <button onclick="loadAdminStats()">🔄 Refresh Stats</button>
+                    <div id="adminStatsContainer" class="stats-grid">
+                        <!-- Stats will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Users Section -->
+                <div id="adminUsersSection" class="admin-content-section" style="display: none;">
+                    <h3>User Management</h3>
+                    <button onclick="loadAllUsers()">Load All Users</button>
+                    
+                    <div class="admin-section">
+                        <h4>Promote/Demote User</h4>
+                        <input type="text" id="adminPromoteUser" placeholder="Username">
+                        <button onclick="promoteUser()">Promote to Admin</button>
+                        <button onclick="demoteUser()">Demote from Admin</button>
+                    </div>
+
+                    <div class="admin-section">
+                        <h4>Delete User</h4>
+                        <input type="text" id="adminDeleteUser" placeholder="Username">
+                        <button onclick="deleteUser()" style="background-color: #dc3545;">Delete User</button>
+                    </div>
+
+                    <div id="usersTableContainer" class="table-container">
+                        <!-- Users table will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Movies Section -->
+                <div id="adminMoviesSection" class="admin-content-section" style="display: none;">
+                    <h3>Movie Management</h3>
+                    <button onclick="loadAdminMovies()">Load All Movies</button>
+                    
+                    <div class="admin-section">
+                        <h4>Add New Movie</h4>
+                        <form onsubmit="event.preventDefault(); adminAddMovie();" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <input type="text" id="addMovieTitle" placeholder="Movie Title" required>
+                            <input type="number" id="addMovieRating" placeholder="IMDb Rating (0-10)" step="0.1" min="0" max="10" required>
+                            <input type="text" id="addMovieGenres" placeholder="Genres (comma-separated)" required>
+                            <input type="text" id="addMovieDirectors" placeholder="Directors (comma-separated)" required>
+                            <input type="text" id="addMovieStars" placeholder="Main Stars (comma-separated)" required>
+                            <input type="text" id="addMovieCreators" placeholder="Creators (comma-separated)" required>
+                            <input type="text" id="addMovieDatePublished" placeholder="Release Date (YYYY-MM-DD)" required>
+                            <input type="number" id="addMovieRatingCount" placeholder="Total Rating Count" value="0">
+                            <input type="text" id="addMovieUserReviews" placeholder="Total User Reviews" value="0">
+                            <input type="text" id="addMovieCriticReviews" placeholder="Total Critic Reviews" value="0">
+                            <input type="text" id="addMovieMetaScore" placeholder="MetaScore" value="N/A">
+                            <input type="text" id="addMoviePosterUrl" placeholder="Poster URL (optional)">
+                            <textarea id="addMovieDescription" placeholder="Movie Description (max 500 chars)" rows="3" maxlength="500" style="grid-column: 1 / -1;" required></textarea>
+                            <button type="submit" style="grid-column: 1 / -1;">Add Movie</button>
+                        </form>
+                    </div>
+                    
+                    <div class="admin-section">
+                        <h4>Delete Movie</h4>
+                        <input type="text" id="adminDeleteTitle" placeholder="Movie title to delete">
+                        <button onclick="adminDeleteMovie()" style="background-color: #dc3545;">Delete Movie</button>
+                    </div>
+
+                    <div id="moviesTableContainer" class="table-container">
+                        <!-- Movies table will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Penalties Section -->
+                <div id="adminPenaltiesSection" class="admin-content-section" style="display: none;">
+                    <h3>Penalty Management</h3>
+                    
+                    <div class="admin-section">
+                        <h4>Assign Penalty</h4>
+                        <input type="text" id="penaltyUsername" placeholder="Username">
+                        <input type="number" id="penaltyPoints" placeholder="Points">
+                        <input type="text" id="penaltyReason" placeholder="Reason">
+                        <button onclick="assignPenalty()">Assign Penalty</button>
+                    </div>
+
+                    <div class="admin-section">
+                        <h4>View User Penalties</h4>
+                        <input type="text" id="viewPenaltiesUsername" placeholder="Username">
+                        <button onclick="loadUserPenalties()">View Penalties</button>
+                    </div>
+
+                    <div id="penaltiesContainer">
+                        <!-- Penalties will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Series Section -->
+                <div id="adminSeriesSection" class="admin-content-section" style="display: none;">
+                    <h3>Series Management</h3>
+                    <button onclick="loadAdminSeries()">Load All Series</button>
+                    
+                    <div class="admin-section">
+                        <h4>Create New Series</h4>
+                        <input type="text" id="createSeriesName" placeholder="Series Name (e.g., 'John Wick')">
+                        <div id="seriesMoviesList" style="margin: 10px 0;">
+                            <p style="color: #718096; font-size: 0.9rem;">Add movies to this series:</p>
+                            <div id="seriesMoviesInputs">
+                                <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px;">
+                                    <input type="text" placeholder="Movie Title" class="series-movie-title">
+                                    <input type="number" placeholder="Order #" class="series-movie-order" min="1">
+                                    <button onclick="addSeriesMovieRow()" type="button">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="createSeries()">Create Series</button>
+                    </div>
+
+                    <div class="admin-section">
+                        <h4>Delete Series</h4>
+                        <input type="text" id="deleteSeriesName" placeholder="Series name to delete">
+                        <button onclick="deleteSeries()" style="background-color: #dc3545;">Delete Series</button>
+                    </div>
+
+                    <div id="seriesTableContainer" class="table-container">
+                        <!-- Series table will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Movie Detail Modal -->
+            <div id="movieModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close" onclick="closeModal()">&times;</span>
+                    <div id="movieDetails"></div>
+                </div>
+            </div>
+
+            <!-- Review Modal -->
+            <div id="reviewModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close" onclick="closeReviewModal()">&times;</span>
+                    <h2>Write a Review</h2>
+                    <div id="reviewForm">
+                        <input type="text" id="reviewTitle" placeholder="Review Title" required>
+                        <input type="number" id="reviewRating" placeholder="Rating (1-10)" min="1" max="10" required>
+                        <textarea id="reviewText" placeholder="Your review..." rows="6" required></textarea>
+                        <button onclick="submitReview()">Submit Review</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add to List Modal -->
+            <div id="addToListModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close" onclick="closeAddToListModal()">&times;</span>
+                    <h2>Add to List</h2>
+                    <p id="addToListMovieTitle" style="margin-bottom: 15px; color: #667eea;"></p>
+                    <select id="listSelector" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                        <option value="">Select a list...</option>
+                    </select>
+                    <button onclick="confirmAddToList()">Add to List</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

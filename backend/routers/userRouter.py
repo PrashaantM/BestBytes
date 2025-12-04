@@ -69,6 +69,7 @@ def getCurrentUser(sessionToken: str):
             "username": currentUser.username,
             "email": currentUser.email,
             "verified": currentUser.isVerified,
+            "isAdmin": currentUser.isAdmin,
             "createdAt": str(currentUser.createdAt),
             "lastLogin": str(currentUser.lastLogin) if currentUser.lastLogin else None
         }
@@ -76,7 +77,7 @@ def getCurrentUser(sessionToken: str):
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
 
 @router.get("/recommendations")
-def getUserRecommendations(sessionToken: str):
+async def getUserRecommendations(sessionToken: str):
     """Get movie recommendations for the user."""
     currentUser = User.getCurrentUser(sessionToken)
 
@@ -84,8 +85,12 @@ def getUserRecommendations(sessionToken: str):
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
     
     try:
-        recommendations = recommendSvc.recommendMovies(currentUser.username, numRecommendations=5)
-    except Exception:
+        recommendations = await recommendSvc.recommendMovies(currentUser.username, numRecommendations=5)
+        print(f"DEBUG: Recommendations for {currentUser.username}: {len(recommendations)} movies")
+        if recommendations:
+            print(f"DEBUG: First recommendation: {recommendations[0].get('title', 'Unknown')}")
+    except Exception as e:
+        print(f"ERROR generating recommendations: {str(e)}")
         raise HTTPException(status_code=500, detail="Error generating recommendations")
     
     return recommendations

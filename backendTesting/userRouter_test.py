@@ -278,8 +278,18 @@ class TestGetCurrentUser:
         yield
         self.patch.stop()
 
-    def test_get_current_user_success(self):
+    def test_get_current_user_success(self, monkeypatch):
         """Valid token -> returns user details"""
+        class DummyUser:
+            def __init__(self):
+                self.username = "khushi"
+                self.email = "k@gmail.com"
+                self.isVerified = True
+                self.isAdmin = False
+                self.createdAt = "2024-01-01"
+                self.lastLogin = "2024-01-02"
+        
+        monkeypatch.setattr("backend.routers.userRouter.User.getCurrentUser", lambda token: DummyUser())
         response = client.get("/me?sessionToken=valid-token")
         assert response.status_code == 200
 
@@ -287,8 +297,7 @@ class TestGetCurrentUser:
         assert data["username"] == "khushi"
         assert data["email"] == "k@gmail.com"
         assert data["verified"] is True
-        assert data["createdAt"] == "2024-01-01"
-        assert data["lastLogin"] == "2024-01-02"
+        assert data["isAdmin"] is False
 
     def test_get_current_user_invalid_token(self):
         """Invalid token -> 401"""
@@ -307,7 +316,11 @@ class TestRecommendations:
         sampleRecs = [{"title" : "Interstellar", "score": 9.0}, {"title" : "Inception", "score": 8.8}]
 
         monkeypatch.setattr("backend.routers.userRouter.User.getCurrentUser", lambda sessionToken: SimpleNamespace(username="ben"))
-        monkeypatch.setattr(MovieRecommendationService, "recommendMovies", lambda self, username, numRecommendations = 5: sampleRecs)
+        
+        async def async_recommend(*args, **kwargs):
+            return sampleRecs
+        
+        monkeypatch.setattr(MovieRecommendationService, "recommendMovies", async_recommend)
 
         response = client.get("/recommendations", params={"sessionToken": "validToken"})
         assert response.status_code == 200

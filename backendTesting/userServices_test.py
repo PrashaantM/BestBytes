@@ -16,12 +16,15 @@ def mockBaseDir(tmp_path):
 
 
 #pylint: disable = function-naming-style, method-naming-style
-name = "test"
-email = "email@email.com"
-pswd = "password"
-testUser = user.User(name, email, pswd, save = False)
+@pytest.fixture
+def testUser():
+    user.User.usersDb.clear()
+    name = "testservice"
+    email = "testservice@email.com"
+    pswd = "password123"
+    return user.User(name, email, pswd, save = False)
 
-def test_saveUserToDB(mockBaseDir):
+def test_saveUserToDB(mockBaseDir, testUser):
     #If we call this function, we should be able to find the specific user created
     mockBaseDir.mkdir(parents=True, exist_ok=True)
     path = mockBaseDir/"userList.json"
@@ -32,15 +35,15 @@ def test_saveUserToDB(mockBaseDir):
         except json.JSONDecodeError:
             data = {}
         
-    assert name in data
-    assert email == data[name]["email"]
-    assert testUser.passwordHash.decode('utf-8') == data[name]["password"]
+    assert testUser.username in data
+    assert testUser.email == data[testUser.username]["email"]
+    assert testUser.passwordHash.decode('utf-8') == data[testUser.username]["password"]
 
     #clean up
     with open(path,'w') as jsonFile:
         jsonFile.truncate(0)
 
-def test_ChangeUser(mockBaseDir):
+def test_ChangeUser(mockBaseDir, testUser):
     #If we call this function, we should be able to find the specific user created
     mockBaseDir.mkdir(parents=True, exist_ok=True)
     path = mockBaseDir/"userList.json"
@@ -61,7 +64,7 @@ def test_ChangeUser(mockBaseDir):
         
 
 
-def testFindUserInDB(mockBaseDir):
+def testFindUserInDB(mockBaseDir, testUser):
     mockBaseDir.mkdir(parents=True, exist_ok=True)
     path = mockBaseDir/"userList.json"
     saveUserToDB(testUser.username,testUser.email,testUser.passwordHash,False,path)

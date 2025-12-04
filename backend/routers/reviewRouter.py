@@ -178,15 +178,11 @@ def addReview(title: str, reviewData: movieReviewsCreate, sessionToken: str = Qu
 
 @router.get("/{title}/reviews", response_model=List[movieReviews])
 def getAllReviewsForMovie(title: str):
-    """Return all reviews for a specific movie."""
-    try:
-        movie = getMovieByName(title)
-        if not movie.reviews:
-            raise HTTPException(status_code=404, detail="No reviews found for this movie")
-        return movie.reviews
-    except HTTPException:
-        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
-
+    """Return all reviews for a specific movie from memory."""
+    reviews = getReviewsForMovie(title)
+    if not reviews:
+        raise HTTPException(status_code=404, detail="No reviews found for this movie")
+    return reviews
 
 # list all reviews by a user
 

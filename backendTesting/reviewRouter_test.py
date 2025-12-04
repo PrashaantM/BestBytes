@@ -69,11 +69,10 @@ class TestGetAllReviewsForMovie:
     def testGetReviewsSuccess(self, tmp_path, monkeypatch):
         """Successfully get reviews for a movie"""
         
-        mockMovie = createMockMovie(reviews=[movieReviews(**DUMMY_REVIEW)])
+        mockReview = movieReviews(**DUMMY_REVIEW)
+        mockReviewsMemory = {"joker": [mockReview]}
         
-        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie:
-            mockGetMovie.return_value = mockMovie
-            
+        with patch("backend.routers.reviewRouter.movieReviews_memory", mockReviewsMemory):
             response = client.get("/Joker/reviews")
             
             assert response.status_code == 200
@@ -82,28 +81,22 @@ class TestGetAllReviewsForMovie:
     def testGetReviewsMovieNotFound(self):
         """404 when movie doesn't exist"""
         
-        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie:
-            from fastapi import HTTPException
-            mockGetMovie.side_effect = HTTPException(status_code=404, detail="Movie not found")
-            
+        with patch("backend.routers.reviewRouter.movieReviews_memory", {}):
             response = client.get("/UnknownMovie/reviews")
             
             assert response.status_code == 404
-            assert "not found" in response.json()["detail"]
+            assert "No reviews found for this movie" in response.json()["detail"]
 
     def testGetReviewsNoneExist(self):
         """404 when movie has no reviews"""
         
-        mockMovie = createMockMovie(reviews=[])
+        mockReviewsMemory = {"joker": []}
         
-        with patch("backend.routers.reviewRouter.getMovieByName") as mockGetMovie:
-            mockGetMovie.return_value = mockMovie
-            
+        with patch("backend.routers.reviewRouter.movieReviews_memory", mockReviewsMemory):
             response = client.get("/Joker/reviews")
             
             assert response.status_code == 404
-            # The endpoint returns either "No reviews found" or "Movie not found"
-            assert "not found" in response.json()["detail"].lower()
+            assert "No reviews found for this movie" in response.json()["detail"]
 
 
 class TestGetReviewsByUser:

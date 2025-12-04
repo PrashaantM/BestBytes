@@ -12,131 +12,139 @@ from datetime import datetime, timedelta
 import threading
 
 # pylint: disable=function-naming-style, method-naming-style
-name = "test"
-email = "email@email.com"
-pswd = "password"
-testUser = User(name, email, pswd, save=False)
-
 
 @pytest.fixture(autouse=True)
 def cleanupUsersDb():
     User.usersDb.clear()
     User.activeSessions.clear()
+    # Also clear the persistent JSON file for tests
+    path = Path("backend/data/Users/userList.json")
+    if path.exists():
+        path.write_text("{}")
     yield
     User.usersDb.clear()
     User.activeSessions.clear()
+    if path.exists():
+        path.write_text("{}")
+
+@pytest.fixture
+def testUser():
+    name = "test"
+    email = "email@email.com"
+    pswd = "password"
+    return User(name, email, pswd, save=False)
 
 
 class TestCheckUsername:
-    def testCheckUsernameTooShort(self):
+    def testCheckUsernameTooShort(self, testUser):
         assert testUser.checkUsername("a") is False
 
-    def testCheckUsernameTooLong(self):
+    def testCheckUsernameTooLong(self, testUser):
         assert testUser.checkUsername("a" * 26) is False
 
-    def testCheckUsernameNonAlphnum(self):
+    def testCheckUsernameNonAlphnum(self, testUser):
         assert testUser.checkUsername("abcde%") is False
 
-    def testCheckUsernameValid(self):
+    def testCheckUsernameValid(self, testUser):
         assert testUser.checkUsername("Username") is True
 
-    def testCheckUsernameMinLength(self):
+    def testCheckUsernameMinLength(self, testUser):
         assert testUser.checkUsername("abc") is True
 
-    def testCheckUsernameMaxLength(self):
+    def testCheckUsernameMaxLength(self, testUser):
         assert testUser.checkUsername("a" * 20) is True
 
-    def testCheckUsernameJustOverMax(self):
+    def testCheckUsernameJustOverMax(self, testUser):
         assert testUser.checkUsername("a" * 21) is False
 
-    def testCheckUsernameWithUnderscore(self):
+    def testCheckUsernameWithUnderscore(self, testUser):
         assert testUser.checkUsername("user_name") is False
         assert testUser.checkUsername("test_user_123") is False
 
-    def testCheckUsernameEmpty(self):
+    def testCheckUsernameEmpty(self, testUser):
         assert testUser.checkUsername("") is False
 
 
 class TestCheckEmail:
-    def testCheckEmailBadPattern(self):
+    def testCheckEmailBadPattern(self, testUser):
         assert testUser.checkEmail("email.com") is False
         assert testUser.checkEmail("email.email.com") is False
 
-    def testCheckEmailValidPattern(self):
+    def testCheckEmailValidPattern(self, testUser):
         assert testUser.checkEmail("email@email.com") is True
 
-    def testCheckEmailMultipleAt(self):
+    def testCheckEmailMultipleAt(self, testUser):
         assert testUser.checkEmail("email@@email.com") is False
 
-    def testCheckEmailNoTopLevelDomain(self):
+    def testCheckEmailNoTopLevelDomain(self, testUser):
         assert testUser.checkEmail("email@email") is False
 
-    def testCheckEmailSpecialCharsInvalid(self):
+    def testCheckEmailSpecialCharsInvalid(self, testUser):
         assert testUser.checkEmail("em ail@email.com") is False
 
-    def testCheckEmailEmpty(self):
+    def testCheckEmailEmpty(self, testUser):
         assert testUser.checkEmail("") is False
 
-    def testCheckEmailValidWithPlus(self):
+    def testCheckEmailValidWithPlus(self, testUser):
         assert testUser.checkEmail("user+tag@email.com") is True
 
 
-class TestEncryptPassword(TestCase):
-    def testEncryptPasswordInvalid(self):
-        with self.assertRaises(Exception):
+class TestEncryptPassword:
+    def testEncryptPasswordInvalid(self, testUser):
+        with pytest.raises(Exception):
             testUser.encryptPassword("a")
 
-    def testEncryptPasswordValid(self):
+    def testEncryptPasswordValid(self, testUser):
         assert isinstance(testUser.encryptPassword("password"), bytes)
 
-    def testEncryptPasswordMinLength(self):
+    def testEncryptPasswordMinLength(self, testUser):
         result = testUser.encryptPassword("12345678")
         assert isinstance(result, bytes)
 
-    def testEncryptPasswordVeryLong(self):
+    def testEncryptPasswordVeryLong(self, testUser):
         longPassword = "a" * 100
         with pytest.raises(ValueError, match="cannot be longer than 72 bytes"):
             testUser.encryptPassword(longPassword)
 
-    def testEncryptPasswordSpecialChars(self):
+    def testEncryptPasswordSpecialChars(self, testUser):
         result = testUser.encryptPassword("P@ssw0rd!")
         assert isinstance(result, bytes)
 
-    def testEncryptPasswordUnicode(self):
+    def testEncryptPasswordUnicode(self, testUser):
         result = testUser.encryptPassword("pässwörd123")
         assert isinstance(result, bytes)
 
 
 class TestVerifyPassword:
-    def testVerifyPasswordInvalid(self):
+    def testVerifyPasswordInvalid(self, testUser):
         assert testUser.verifyPassword("notpass") is False
 
-    def testVerifyPasswordValid(self):
+    def testVerifyPasswordValid(self, testUser):
         assert testUser.verifyPassword("password") is True
 
-    def testVerifyPasswordEmpty(self):
+    def testVerifyPasswordEmpty(self, testUser):
         assert testUser.verifyPassword("") is False
 
-    def testVerifyPasswordCaseSensitive(self):
+    def testVerifyPasswordCaseSensitive(self, testUser):
         assert testUser.verifyPassword("Password") is False
         assert testUser.verifyPassword("PASSWORD") is False
 
-    def testVerifyPasswordWithSpaces(self):
+    def testVerifyPasswordWithSpaces(self, testUser):
         assert testUser.verifyPassword(" password") is False
         assert testUser.verifyPassword("password ") is False
 
 
 class TestVerifyEmail:
-    def testVerifyEmail(self):
+    def testVerifyEmail(self, testUser):
         assert testUser.verifyEmail(testUser.verificationToken) is True
 
-    def testVerifyEmailFalse(self):
+    def testVerifyEmailFalse(self, testUser):
         assert testUser.verifyEmail(testUser.id) is False
 
-    def testVerifyEmailEmpty(self):
+    def testVerifyEmailEmpty(self, testUser):
         assert testUser.verifyEmail("") is False
 
-    def testVerifyEmailAlreadyVerified(self):
+    def testVerifyEmailAlreadyVerified(self, testUser):
         user = User("testverify", "verify@test.com", "password123", save=False)
         user.verifyEmail(user.verificationToken)
         assert user.isVerified is True
@@ -144,7 +152,13 @@ class TestVerifyEmail:
         assert user.isVerified is True
 
 
-def testLoginAllowedWithFewerThan3Penalties():
+# Module-level variables for functions that need them
+name = "testuser"
+email = "testuser@email.com"
+pswd = "password123"
+
+
+def testLoginAllowedWithFewerThan3Penalties(cleanupUsersDb):
     user = User(name, email, pswd, save=False)
     user.isVerified = True
     PenaltyPoints(1, user, "Reason 1")
@@ -154,7 +168,7 @@ def testLoginAllowedWithFewerThan3Penalties():
     assert token is not None
 
 
-def testLoginBlockedWithMoreThan3Penalties():
+def testLoginBlockedWithMoreThan3Penalties(cleanupUsersDb):
     blockedUser = User("blockeduser", "blocked@email.com", pswd, save=False)
     blockedUser.isVerified = True
     for i in range(5):
@@ -164,7 +178,7 @@ def testLoginBlockedWithMoreThan3Penalties():
         User.login(blockedUser.username, pswd)
 
 
-def testLoginBlockedWithExactly3Penalties():
+def testLoginBlockedWithExactly3Penalties(cleanupUsersDb):
     user = User("boundaryuser", "boundary@test.com", pswd, save=False)
     user.isVerified = True
     PenaltyPoints(1, user, "Reason 1")
@@ -175,7 +189,7 @@ def testLoginBlockedWithExactly3Penalties():
         User.login(user.username, pswd)
 
 
-def testLoginAllowedWithExpiredPenalties():
+def testLoginAllowedWithExpiredPenalties(cleanupUsersDb):
     user = User("expireduser", "expired@test.com", pswd, save=False)
     user.isVerified = True
     pp1 = PenaltyPoints(2, user, "Old violation")
@@ -188,19 +202,19 @@ def testLoginAllowedWithExpiredPenalties():
     assert token is not None
 
 
-def testTotalPenaltyPoints():
+def testTotalPenaltyPoints(cleanupUsersDb):
     user = User("penaltytest", "penalty@test.com", "password123", save=False)
     PenaltyPoints(1, user, "Minor violation")
     PenaltyPoints(2, user, "Major violation")
     assert user.totalPenaltyPoints() == 3
 
 
-def testTotalPenaltyPointsZero():
+def testTotalPenaltyPointsZero(cleanupUsersDb):
     user = User("newpenalty", "newpenalty@test.com", "password123", save=False)
     assert user.totalPenaltyPoints() == 0
 
 
-def testCreateAccountSuccess():
+def testCreateAccountSuccess(cleanupUsersDb):
     username = "newuser1"
     emailNew = "newuser1@example.com"
     password = "StrongPass123!"
@@ -212,7 +226,7 @@ def testCreateAccountSuccess():
     assert user.penaltyPointsList == []
 
 
-def testCreateAccountDuplicateUsername():
+def testCreateAccountDuplicateUsername(cleanupUsersDb):
     username = "duplicateUser"
     email1 = "duplicate1@example.com"
     email2 = "duplicate2@example.com"
@@ -223,7 +237,7 @@ def testCreateAccountDuplicateUsername():
         User.createAccount(username, email2, password)
 
 
-def testCreateAccountDuplicateEmail():
+def testCreateAccountDuplicateEmail(cleanupUsersDb):
     username1 = "user1"
     username2 = "user2"
     sharedEmail = "same@example.com"
@@ -251,7 +265,7 @@ def testCreateAccountWeakPassword():
         User("validuser", "valid@test.com", "short", save=False)
 
 
-def testLoginFailsNotVerified():
+def testLoginFailsNotVerified(cleanupUsersDb):
     username = "unverified"
     emailUnverified = "unverified@example.com"
     password = "password123"
@@ -267,7 +281,7 @@ def testLoginInvalidUsername():
         User.login("nonexistent", "password123")
 
 
-def testLoginInvalidPassword():
+def testLoginInvalidPassword(cleanupUsersDb):
     user = User("testlogin", "testlogin@test.com", "correct123", save=False)
     user.isVerified = True
     User.usersDb[user.username] = user
@@ -275,7 +289,7 @@ def testLoginInvalidPassword():
         User.login(user.username, "wrongpassword")
 
 
-def testLoginSuccess():
+def testLoginSuccess(cleanupUsersDb):
     user = User("logintest", "login@test.com", "password123", save=False)
     user.isVerified = True
     User.usersDb[user.username] = user
@@ -285,7 +299,7 @@ def testLoginSuccess():
     assert user.lastLogin is not None
 
 
-def testLogoutSuccess():
+def testLogoutSuccess(cleanupUsersDb):
     user = User("logouttest", "logout@test.com", "password123", save=False)
     user.isVerified = True
     User.usersDb[user.username] = user
@@ -296,13 +310,13 @@ def testLogoutSuccess():
     assert token not in User.activeSessions
 
 
-def testLogoutInvalidToken():
+def testLogoutInvalidToken(cleanupUsersDb):
     user = User("logouttest2", "logout2@test.com", "password123", save=False)
     result = user.logout("invalid-token-12345")
     assert result is False
 
 
-def testGetCurrentUserValid():
+def testGetCurrentUserValid(cleanupUsersDb):
     user = User("sessiontest", "session@test.com", "password123", save=False)
     user.isVerified = True
     User.usersDb[user.username] = user
@@ -312,13 +326,13 @@ def testGetCurrentUserValid():
     assert retrievedUser.username == user.username
 
 
-def testGetCurrentUserInvalid():
+def testGetCurrentUserInvalid(cleanupUsersDb):
     user = User("sessiontest2", "session2@test.com", "password123", save=False)
     retrievedUser = user.getCurrentUser("invalid-token")
     assert retrievedUser is None
 
 
-def testGetCurrentUserExpired():
+def testGetCurrentUserExpired(cleanupUsersDb):
     user = User("expiredtest", "expired@test.com", "password123", save=False)
     user.isVerified = True
     User.usersDb[user.username] = user
@@ -332,7 +346,7 @@ def testGetCurrentUserExpired():
     assert token not in User.activeSessions
 
 
-def testCleanExpiredSessions():
+def testCleanExpiredSessions(cleanupUsersDb):
     user1 = User("cleanup1", "cleanup1@test.com", "password123", save=False)
     user2 = User("cleanup2", "cleanup2@test.com", "password123", save=False)
     user1.isVerified = True
@@ -350,7 +364,7 @@ def testCleanExpiredSessions():
     assert token2 in User.activeSessions
 
 
-def testCompleteUserWorkflow():
+def testCompleteUserWorkflow(cleanupUsersDb):
     username = "workflow"
     emailWorkflow = "workflow@test.com"
     password = "password123"

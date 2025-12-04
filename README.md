@@ -17,13 +17,13 @@ uvicorn backend.app:app --reload
 
 ## Admin Login
 
-- Username: `admin2`
+- Username: `admin`
 - Password: `Admin123!`
 
 Login endpoint:
 
 ```
-POST /users/login?username=admin2&password=Admin123!
+POST /users/login?username=admin&password=Admin123!
 ```
 
 The response includes `sessionToken`, which you use for authenticated requests.

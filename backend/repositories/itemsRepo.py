@@ -96,6 +96,9 @@ def saveMetadata(movieName: str, metadata: Dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 def saveReviews(movieName: str, reviews: List[Dict[str, str]]) -> None:
+    from backend.routers.reviewRouter import movieReviews_memory
+    from backend.schemas.movieReviews import movieReviews
+    
     path = getMovieDir(movieName) / "movieReviews.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -137,8 +140,21 @@ def saveReviews(movieName: str, reviews: List[Dict[str, str]]) -> None:
             writer.writeheader()
             writer.writerows(csvReviews)
         os.replace(tmp, path)
+        
+        # Update in-memory cache
+        reviewObjects = []
+        for review in reviews:
+            try:
+                reviewObjects.append(movieReviews(**review))
+            except Exception:
+                continue
+        movieReviews_memory[movieName.lower()] = reviewObjects
+        print(f"DEBUG: Updated memory cache for '{movieName}' with {len(reviewObjects)} reviews")
+        
     elif path.exists():
         path.unlink()
+        # Clear from memory cache if no reviews
+        movieReviews_memory.pop(movieName.lower(), None)
 
 
 
