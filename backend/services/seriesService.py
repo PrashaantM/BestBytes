@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 from fastapi import HTTPException
 
-from repositories.itemsRepo import loadMetadata, saveMetadata, loadReviews
-from schemas.movie import movie
+from backend.repositories.itemsRepo import loadMetadata, saveMetadata, loadReviews
+from backend.schemas.movie import movie
 
 baseDir = Path(__file__).resolve().parents[1] / "data"
 
