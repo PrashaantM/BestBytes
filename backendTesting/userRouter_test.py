@@ -2,10 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from unittest.mock import patch
-
+from types import SimpleNamespace
 
 from backend.routers.userRouter import router
 from backend.users.user import User
+from backend.services.movieRecommendationService import MovieRecommendationService
 
 app = FastAPI()
 app.include_router(router)
@@ -299,3 +300,23 @@ class TestGetCurrentUser:
         """Missing query parameter -> FastAPI returns 422"""
         response = client.get("/me")
         assert response.status_code == 422
+
+class TestRecommendations:
+
+    def testUserRecommendationSuccess(self, monkeypatch):
+        sampleRecs = [{"title" : "Interstellar", "score": 9.0}, {"title" : "Inception", "score": 8.8}]
+
+        monkeypatch.setattr("backend.routers.userRouter.User.getCurrentUser", lambda sessionToken: SimpleNamespace(username="ben"))
+        monkeypatch.setattr(MovieRecommendationService, "recommendMovies", lambda self, username, numRecommendations = 5: sampleRecs)
+
+        response = client.get("/recommendations", params={"sessionToken": "validToken"})
+        assert response.status_code == 200
+        assert response.json() == sampleRecs
+
+    def testUnauthorizedRecommendation(self,monkeypatch):
+
+        monkeypatch.setattr("backend.routers.userRouter.User.getCurrentUser", lambda sessionToken: None)
+        
+        response = client.get("/recommendations", params={"sessionToken": "invalidToken"})
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid or expired session token"
