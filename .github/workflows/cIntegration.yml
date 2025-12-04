@@ -31,6 +31,7 @@ jobs:
           python -m pip install fastapi
           python -m pip install bcrypt
           python -m pip install httpx
+          pip install scipy numpy scikit-learn --only-binary :all:
             
 
       - name: Run tests

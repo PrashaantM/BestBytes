@@ -1,9 +1,11 @@
 import os
 from fastapi import APIRouter, HTTPException
 from backend.users.user import User
+from backend.services.movieRecommendationService import MovieRecommendationService 
 from backend.routers.listsRouter import userMovieLists
 
 router = APIRouter()
+recommendSvc = MovieRecommendationService()
 
 
 # register user
@@ -72,3 +74,20 @@ def getCurrentUser(sessionToken: str):
         }
     else:
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
+
+@router.get("/recommendations")
+def getUserRecommendations(sessionToken: str):
+    """Get movie recommendations for the user."""
+    currentUser = User.getCurrentUser(sessionToken)
+
+    if not currentUser:
+        raise HTTPException(status_code=401, detail="Invalid or expired session token")
+    
+    try:
+        recommendations = recommendSvc.recommendMovies(currentUser.username, numRecommendations=5)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error generating recommendations")
+    
+    return recommendations
+    
+    

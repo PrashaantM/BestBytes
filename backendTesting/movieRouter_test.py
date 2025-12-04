@@ -5,7 +5,9 @@ from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from unittest.mock import patch
 
+
 from backend.routers.movieRouter import router, load_all_movies
+
 
 app = FastAPI()
 app.include_router(router)
@@ -395,3 +397,6 @@ class TestSearchMovies:
         assert response.status_code == 200
         results = response.json()
         assert len(results) == 0
+
+
+
