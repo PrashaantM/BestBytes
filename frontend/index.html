@@ -81,7 +81,15 @@
                 <div class="search-section">
                     <h2>Search Movies</h2>
                     <div class="search-bar">
-                        <input type="text" id="searchInput" placeholder="Search by title, genre, or director...">
+                        <select id="searchField" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px 0 0 4px;">
+                            <option value="all">All Fields</option>
+                            <option value="title">Title</option>
+                            <option value="description">Description</option>
+                            <option value="cast">Cast</option>
+                            <option value="director">Director</option>
+                            <option value="creator">Creator</option>
+                        </select>
+                        <input type="text" id="searchInput" placeholder="Search movies...">
                         <button onclick="searchMovies()">Search</button>
                     </div>
                 </div>

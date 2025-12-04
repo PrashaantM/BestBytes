@@ -5,6 +5,7 @@ from typing import List, Dict
 from fastapi import HTTPException
 import json
 import asyncio
+import re
 
 from schemas.movie import movie, movieCreate, movieUpdate, movieFilter
 from schemas.movieReviews import movieReviews, movieReviewsCreate, movieReviewsUpdate
@@ -13,6 +14,37 @@ from users import user
 from .tmdbService import search_tmdb, get_tmdb_movie_details
 
 baseDir = Path(__file__).resolve().parents[1] / "data" # basDir is now pointing to data folder 
+
+def _matches_search_term(text: str, search_term: str) -> bool:
+    """Check if text matches search term using intelligent matching.
+    
+    - Single words: match with word boundaries (avoid "nolan" matching "morbius")
+    - Multiple words: check if phrase exists or all words appear
+    - Partial matches allowed for titles and descriptions
+    """
+    text_lower = text.lower()
+    words = search_term.lower().split()
+    
+    # For multi-word searches, check exact phrase first, then all words
+    if len(words) > 1:
+        # Try exact phrase match first
+        if search_term in text_lower:
+            return True
+        # Then check if all words appear (word boundaries)
+        return all(re.search(r'\b' + re.escape(word) + r'\b', text_lower) for word in words)
+    
+    # Single word - try word boundary match first (for cast/director names)
+    single_word = words[0]
+    
+    # Check word boundary match (full word)
+    if re.search(r'\b' + re.escape(single_word) + r'\b', text_lower):
+        return True
+    
+    # Also allow partial substring matches (for titles, descriptions)
+    if single_word in text_lower:
+        return True
+    
+    return False 
 
 #creates a movies list and adds reviews to each 
 def listMovies() -> List[movie]:
@@ -136,9 +168,42 @@ def searchMovies(filters: movieFilter) -> List[movie]:
         m = movie(**{k: v for k, v in metadata.items() if k != "reviews"}, reviews=[]) #creates movie object without reviews
         include = True#included in list until proven otherwise
 
-        # --- Title ---
-        if filters.title and filters.title.lower() not in m.title.lower():#checks if title exists of if it's a substring
-            include = False
+        # --- Title + Description + Cast + Creators (Multi-field search) ---
+        if filters.title:
+            search_term = filters.title.lower().strip()
+            search_field = getattr(filters, 'searchField', None) or 'all'
+            
+            # Search based on selected field
+            if search_field == 'title':
+                # Only search titles
+                if not _matches_search_term(m.title, search_term):
+                    include = False
+            elif search_field == 'description':
+                # Only search descriptions
+                if not _matches_search_term(m.description, search_term):
+                    include = False
+            elif search_field == 'cast':
+                # Only search cast - check if search term is in ANY cast member's name
+                if not any(_matches_search_term(star, search_term) for star in m.mainStars):
+                    include = False
+            elif search_field == 'director':
+                # Only search directors - check if search term is in ANY director's name
+                if not any(_matches_search_term(director, search_term) for director in m.directors):
+                    include = False
+            elif search_field == 'creator':
+                # Only search creators - check if search term is in ANY creator's name
+                if not any(_matches_search_term(creator, search_term) for creator in m.creators):
+                    include = False
+            else:  # 'all' or default
+                # Search across all fields
+                title_match = _matches_search_term(m.title, search_term)
+                description_match = _matches_search_term(m.description, search_term)
+                cast_match = any(_matches_search_term(star, search_term) for star in m.mainStars)
+                creators_match = any(_matches_search_term(creator, search_term) for creator in m.creators)
+                directors_match = any(_matches_search_term(director, search_term) for director in m.directors)
+                
+                if not (title_match or description_match or cast_match or creators_match or directors_match):
+                    include = False
 
         # --- Genres ---
         if getattr(filters, "genres", None):

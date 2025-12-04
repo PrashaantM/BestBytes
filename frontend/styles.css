@@ -182,11 +182,21 @@ header h1 {
     gap: 10px;
 }
 
+.search-bar select {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px 0 0 8px;
+    font-size: 1rem;
+    background: white;
+    cursor: pointer;
+}
+
 .search-bar input {
     flex: 1;
     padding: 12px;
     border: 2px solid #ddd;
-    border-radius: 8px;
+    border-left: none;
+    border-radius: 0;
     font-size: 1rem;
 }
 
@@ -195,7 +205,7 @@ header h1 {
     background: #667eea;
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 0 8px 8px 0;
     cursor: pointer;
     transition: background 0.3s;
 }
