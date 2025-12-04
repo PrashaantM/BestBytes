@@ -2,6 +2,7 @@ import os
 from fastapi import APIRouter, HTTPException
 from backend.users.user import User
 from backend.services.movieRecommendationService import MovieRecommendationService 
+from backend.routers.listsRouter import userMovieLists
 
 router = APIRouter()
 recommendSvc = MovieRecommendationService()
