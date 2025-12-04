@@ -93,3 +93,30 @@ def deleteList(username: str, listName: str, sessionToken: str):
 
     del userMovieLists[username_key][listName]
     return {"message": f"Deleted list '{listName}' for {username}"}
+
+# add movie to watched if watched
+@router.post("/watched/add")
+def addWatchedMovie(username: str, movieTitle: str, sessionToken: str):
+    """Mark a movie as watched for a user."""
+    current_user = User.getCurrentUser(sessionToken)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Login required to Add Watched")
+
+    username_key = username.lower()
+
+    if username_key not in userMovieLists:
+        raise HTTPException(status_code=404, detail="User has no lists yet")
+
+    userMovieLists[username_key].setdefault("watched", [])
+
+    try:
+        getOrImportMovie(movieTitle)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail=f"Movie '{movieTitle}' not found locally or in TMDB")
+
+    if movieTitle in userMovieLists[username_key]["watched"]:
+        raise HTTPException(status_code=400, detail="Movie already marked as watched")
+
+    userMovieLists[username_key]["watched"].append(movieTitle)
+
+    return {"message": f"Marked '{movieTitle}' as watched"}

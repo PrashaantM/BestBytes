@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from unittest.mock import patch, MagicMock
 
 from backend.routers.listsRouter import router
+from fastapi import HTTPException
 
 app = FastAPI()
 app.include_router(router)
@@ -551,3 +552,84 @@ class TestDeleteList:
         from backend.routers.listsRouter import userMovieLists
         assert "Watch" not in userMovieLists["khushi"]
 
+
+class TestAddWatchedMovie:
+    """Tests for POST /watched/add endpoint"""
+
+    @pytest.fixture(autouse=True)
+    def setup_user(self, mock_valid_user):
+        """Initialize userMovieLists with a user"""
+        from backend.routers.listsRouter import userMovieLists
+        userMovieLists["khushi"] = {"watched": []}
+
+    def test_add_watched_success(self, mock_valid_user):
+        with patch("backend.services.moviesService.getOrImportMovie", return_value=True):
+            response = client.post(
+                "/watched/add",
+                params={
+                    "username": "khushi",
+                    "movieTitle": "Joker",
+                    "sessionToken": "abc"
+                }
+            )
+
+            assert response.status_code == 200
+            assert response.json() == {"message": "Marked 'Joker' as watched"}
+
+            from backend.routers.listsRouter import userMovieLists
+            assert "Joker" in userMovieLists["khushi"]["watched"]
+
+    def test_add_watched_duplicate(self, mock_valid_user):
+        from backend.routers.listsRouter import userMovieLists
+        userMovieLists["khushi"]["watched"] = ["Joker"]
+
+        with patch("backend.services.moviesService.getOrImportMovie", return_value=True):
+            response = client.post(
+                "/watched/add",
+                params={
+                    "username": "khushi",
+                    "movieTitle": "Joker",
+                    "sessionToken": "abc"
+                }
+            )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Movie already marked as watched"
+
+    def test_add_watched_unauthenticated(self, mock_invalid_user):
+        response = client.post(
+            "/watched/add",
+            params={
+                "username": "khushi",
+                "movieTitle": "Joker",
+                "sessionToken": "bad"
+            }
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Login required to Add Watched"
+
+    def test_add_watched_user_not_found(self, mock_valid_user):
+        response = client.post(
+            "/watched/add",
+            params={
+                "username": "unknown",
+                "movieTitle": "Joker",
+                "sessionToken": "abc"
+            }
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == "User has no lists yet"
+
+    def test_add_watched_movie_not_found_in_tmdb(self, mock_valid_user):
+        with patch("backend.routers.listsRouter.getOrImportMovie",
+                   side_effect=HTTPException(status_code=404, detail="Movie not found")):
+            response = client.post(
+                "/watched/add",
+                params={
+                    "username": "khushi",
+                    "movieTitle": "FakeMovie",
+                    "sessionToken": "abc"
+                }
+            )
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
