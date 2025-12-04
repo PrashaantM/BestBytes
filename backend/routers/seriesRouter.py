@@ -10,6 +10,7 @@ from backend.services.seriesService import (
     validateSeriesOrders
 )
 from backend.users.user import User
+from backend.routers.listsRouter import userMovieLists
 
 router = APIRouter()
 
@@ -77,3 +78,36 @@ def delete_series_api(seriesName: str, sessionToken: str):
         raise HTTPException(status_code=403, detail="Admin privileges required")
 
     return deleteSeries(seriesName)
+
+
+@router.get("/{seriesName}/progress/{username}")
+def get_series_progress(seriesName: str, username: str, sessionToken: str):
+    """Return how many movies from the series the user has watched."""
+
+    current_user = User.getCurrentUser(sessionToken)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Invalid or expired session token")
+
+    series_movies = getMoviesInSeries(seriesName)
+    if not series_movies:
+        raise HTTPException(status_code=404, detail=f"Series '{seriesName}' not found")
+
+    username_key = username.lower()
+    if username_key not in userMovieLists:
+        raise HTTPException(status_code=404, detail="User has no lists")
+
+    watched_list = userMovieLists[username_key].get("watched", [])
+
+    series_titles = [m.title for m in series_movies]
+
+    watched_count = sum(1 for title in series_titles if title in watched_list)
+    total_movies = len(series_titles)
+
+    progress_percent = (watched_count / total_movies) * 100 if total_movies > 0 else 0
+
+    return {
+        "seriesName": seriesName,
+        "totalMovies": total_movies,
+        "watched": watched_count,
+        "progressPercent": round(progress_percent, 2)
+    }

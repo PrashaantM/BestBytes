@@ -1,6 +1,7 @@
 import os
 from fastapi import APIRouter, HTTPException
 from backend.users.user import User
+from backend.routers.listsRouter import userMovieLists
 
 router = APIRouter()
 
@@ -11,6 +12,8 @@ def registerUser(username: str, email: str, password: str):
     """Create a new user account."""
     try:
         newUser = User.createAccount(username=username, email=email, password=password)
+        userMovieLists.setdefault(newUser.username.lower(), {})
+        userMovieLists[newUser.username.lower()]["watched"] = []
         return {
             "message": "Account created successfully!",
             "username": newUser.username,
