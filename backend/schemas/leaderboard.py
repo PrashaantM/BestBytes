@@ -29,6 +29,7 @@ class LeaderboardEntry(BaseModel):
     totalReviews: int
     totalUsefulnessVotes: int
     averageUsefulnessRatio: float
+    averageRating: float = Field(..., description="Average rating given by this reviewer (0.0-10.0)")
     helpfulnessScore: float = Field(..., description="Calculated score based on reviews and usefulness")
     
     class Config:
@@ -39,6 +40,7 @@ class LeaderboardEntry(BaseModel):
                 "totalReviews": 100,
                 "totalUsefulnessVotes": 5000,
                 "averageUsefulnessRatio": 0.90,
+                "averageRating": 7.5,
                 "helpfulnessScore": 4500.0
             }
         }

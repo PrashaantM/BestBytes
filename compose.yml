@@ -2,6 +2,17 @@ services:
   backend:
     build: .
     ports:
-    - "8000:8000"
+      - "8000:8000"
     environment:
       - TMDB_API_KEY=${TMDB_API_KEY}
+    volumes:
+      - ./backend/data:/app/backend/data
+  
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - backend

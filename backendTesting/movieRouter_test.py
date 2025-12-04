@@ -106,7 +106,7 @@ class TestLoadMovies:
 
         response = client.get("/")
         assert response.status_code == 404
-        assert response.json()["detail"] == "No movies found in data directory"
+        assert response.json()["detail"] == "No movies found"
 
     def test_load_movies_ignore_files_without_metadata(self, tmp_path, monkeypatch):
         """Ignore folders without metadata.json"""

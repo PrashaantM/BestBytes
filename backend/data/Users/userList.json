@@ -1,48 +1,9 @@
 {
-  "testuser": {
-    "email": "test@example.com",
-    "password": "$2b$12$7mG/6FbrP21rGT3hJRr9D.5VG6MY2xCTBPxvutPwSk.CR9iY0HOYS",
+  "admin": {
+    "email": "admin@bestbytes.com",
+    "password": "$2b$12$FwbXN9I9lYeme7bcGHxB2u8muevQ7pZBhxOSLFIj/SvVaAzTszptW",
     "isVerified": true,
-    "verificationToken": null,
+    "verificationToken": "19b5540f-884a-4548-8837-b02b8712f058",
     "isAdmin": true
-  },
-  "newuser": {
-    "email": "newuser@example.com",
-    "password": "$2b$12$EOo7wu3afnXMnEw5.DN9UewLsRzwwrvaS.y8./poAQGa0tZT4oc56",
-    "isVerified": false,
-    "verificationToken": null,
-    "isAdmin": false
-  },
-  "apitester": {
-    "email": "apitester@example.com",
-    "password": "",
-    "isVerified": true,
-    "verificationToken": null,
-    "isAdmin": false
-  },
-  "admin2": {
-    "email": "admin2@bestbytes.com",
-    "password": "$2b$12$jLrnAVm1n9huRV/JFvjgOukaH4X4eT9.E/Qx2.sgY.33v5hQ/Iq7K",
-    "isVerified": true,
-    "verificationToken": null,
-    "isAdmin": false
-  },
-  "testdownload": {
-    "email": "test@download.com",
-    "password": "$2b$12$mon/G3ofbIdRS8dm61HE/.xrMqYXmyntatICNd8B84qFD2oGvA2PS",
-    "isVerified": true,
-    "verificationToken": "3f2ab966-5e6e-40c8-b9ef-e826b9d960dc"
-  },
-  "bhaydu": {
-    "email": "benhaydu87@gmail.com",
-    "password": "$2b$12$HEdkrqoMLXE8nbFC8E1WiegTCAm9sanWWGIqz8CTpwU.EgYSNAdK6",
-    "isVerified": true,
-    "verificationToken": "0682765a-ad20-4f32-a7b9-8d510f440660"
-  },
-  "filmfan": {
-    "email": "film@test.com",
-    "password": "$2b$12$rBZsLH5pWJGoUHXlhChhDepiwY1vbHLPBDnw9RmFSPOkwWJHtbEfu",
-    "isVerified": true,
-    "verificationToken": "c41d92b8-9220-4be8-8357-0ca71a3c5512"
   }
 }

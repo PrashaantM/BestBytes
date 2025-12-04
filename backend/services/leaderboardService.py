@@ -107,6 +107,7 @@ def generateLeaderboard(
             totalReviews=stats.totalReviews,
             totalUsefulnessVotes=stats.totalUsefulnessVotes,
             averageUsefulnessRatio=stats.averageUsefulnessRatio,
+            averageRating=stats.averageRating,
             helpfulnessScore=data["score"]
         ))
     

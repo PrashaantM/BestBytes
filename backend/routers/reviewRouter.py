@@ -69,9 +69,15 @@ def loadReviewsFromCSV():
                                 continue
                     if reviews:
                         movieReviews_memory[movie_folder.lower()] = reviews
-                        print(f"Loaded {len(reviews)} reviews for {movie_folder}")
+                        try:
+                            print(f"Loaded {len(reviews)} reviews for {movie_folder}")
+                        except UnicodeEncodeError:
+                            print(f"Loaded {len(reviews)} reviews for movie")
                 except Exception as e:
-                    print(f"Error loading reviews for {movie_folder}: {e}")
+                    try:
+                        print(f"Error loading reviews for {movie_folder}: {e}")
+                    except UnicodeEncodeError:
+                        print(f"Error loading reviews for movie: {e}")
 
 # Load reviews at module import time
 loadReviewsFromCSV()
@@ -178,15 +184,11 @@ def addReview(title: str, reviewData: movieReviewsCreate, sessionToken: str = Qu
 
 @router.get("/{title}/reviews", response_model=List[movieReviews])
 def getAllReviewsForMovie(title: str):
-    """Return all reviews for a specific movie."""
-    try:
-        movie = getMovieByName(title)
-        if not movie.reviews:
-            raise HTTPException(status_code=404, detail="No reviews found for this movie")
-        return movie.reviews
-    except HTTPException:
-        raise HTTPException(status_code=404, detail=f"Movie '{title}' not found")
-
+    """Return all reviews for a specific movie from memory."""
+    reviews = getReviewsForMovie(title)
+    if not reviews:
+        raise HTTPException(status_code=404, detail="No reviews found for this movie")
+    return reviews
 
 # list all reviews by a user
 
