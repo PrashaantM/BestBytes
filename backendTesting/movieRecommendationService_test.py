@@ -1,9 +1,10 @@
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from backend.services.movieRecommendationService import MovieRecommendationService
 from pathlib import Path
 from backend.schemas.movieReviews import movieReviews
 from backend.schemas.movie import movie
+import numpy as np
 
 
     
@@ -194,3 +195,74 @@ class TestGetLikeGenres:
             assert "Horror" in likedGenres
             assert "Adventure" not in likedGenres
             assert "Drama" not in likedGenres
+
+class TestGetTop5Movies:
+
+    def testRecommendMovies(self, service, mockMovieReviews, mockMetadataMap):
+        paths = [
+            mockPath("Inception"),
+            mockPath("The Shining"),
+            mockPath("Interstellar")
+        ]
+        
+        with patch.object(service, "dataFolder") as mockDataFolder, \
+            patch('backend.services.movieRecommendationService.movieReviews_memory', mockMovieReviews), \
+            patch('backend.services.movieRecommendationService.loadMetadata', side_effect=lambda path:mockMetadataMap[path.name]), \
+            patch("backend.services.movieRecommendationService.cosine_similarity", return_value = np.array([[.1,.8]])), \
+            patch("backend.services.movieRecommendationService.TfidfVectorizer") as mockVector:
+
+            vectorInstance = mockVector.return_value
+            vectorInstance.fit_transform.return_value = MagicMock()
+            vectorInstance.transform.return_value = MagicMock()
+
+            mockDataFolder.iterdir.return_value = paths
+
+            recommends = service.recommendMovies("ben")
+
+            assert isinstance(recommends, list)
+            assert len(recommends) >=1 and len(recommends) <=10
+            titles = [movie["title"] for movie in recommends]
+            assert "Interstellar" in titles
+            recommend = next(r for r in recommends if r["title"] == "Interstellar")
+            
+            assert 0.0 <= recommend["Content Score"] <= 1.0
+            assert 0.0 <= recommend["Match Score"] <= 1.0
+            assert 0.0 <= recommend["Genre Score"] <= 1.0
+
+
+    def testNoUnreviewedMovies(self, service, mockMovieReviews, mockMetadataMap):
+        paths = [
+            mockPath("Inception"),
+            mockPath("The Shining"),]
+            
+        with patch.object(service, "dataFolder") as mockDataFolder, \
+            patch('backend.services.movieRecommendationService.movieReviews_memory', mockMovieReviews), \
+            patch('backend.services.movieRecommendationService.loadMetadata', side_effect=lambda path:mockMetadataMap[path.name]):
+            mockDataFolder.iterdir.return_value = paths
+            recommends = service.recommendMovies("ben")
+            assert recommends == []
+
+    def testRecommendationWithFailedVecotrization(self, service, mockMovieReviews, mockMetadataMap):
+        paths = [
+            mockPath("Inception"),
+            mockPath("The Shining"),
+            mockPath("Interstellar")
+        ]
+        
+        with patch.object(service, "dataFolder") as mockDataFolder, \
+            patch('backend.services.movieRecommendationService.movieReviews_memory', mockMovieReviews), \
+            patch('backend.services.movieRecommendationService.loadMetadata', side_effect=lambda path:mockMetadataMap[path.name]), \
+            patch("backend.services.movieRecommendationService.TfidfVectorizer") as mockVector:
+
+            vector = mockVector.return_value
+            vector.fit_transform.side_effect = Exception("Vectorization failed")
+            mockDataFolder.iterdir.return_value = paths
+
+            recommends = service.recommendMovies("ben")
+
+            assert isinstance(recommends, list)
+            assert len(recommends) >=1 and len(recommends) <=10
+            recommend = next(r for r in recommends if r["title"] == "Interstellar")
+            assert recommend["Content Score"] == 0.0
+            assert 0.0 <= recommend["Match Score"] <= 1.0
+    
