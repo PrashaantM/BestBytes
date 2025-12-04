@@ -9,7 +9,9 @@ from backend.routers import (
     listsRouter,
     downloadRouter,
     tmdbRouter, 
-    seriesRouter
+    seriesRouter,
+    tmdbRouter,
+    rouletteRouter,
 )
 from backend.users.user import User
 from backend.services.userServices import readAllUsers
@@ -86,6 +88,8 @@ app.include_router(listsRouter.router, prefix="/lists", tags=["Lists"])
 app.include_router(tmdbRouter.router, prefix="/movies", tags=["TMDB"])
 app.include_router(downloadRouter.router, prefix="/downloads", tags=["Downloads"])
 app.include_router(seriesRouter.router, prefix="/series", tags=["Series"])
+app.include_router(rouletteRouter.router, prefix="/roulette", tags=["Roulette"])
+
 
 @app.get("/")
 def root():
