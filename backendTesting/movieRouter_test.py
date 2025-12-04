@@ -28,7 +28,9 @@ JOKER_METADATA = {
     "mainStars": ["Joaquin Phoenix", "Robert De Niro", "Zazie Beetz"],
     "description": "A mentally troubled stand-up comedian embarks on a downward spiral that leads to the creation of an iconic villain.",
     "duration": 122,
-    "reviews": []
+    "reviews": [],
+    "seriesName": None,
+    "seriesOrder": None
 }
 
 
@@ -186,6 +188,8 @@ class TestSearchMovies:
             "creators": ["Jonathan Nolan", "Christopher Nolan"],
             "mainStars": ["Christian Bale", "Heath Ledger", "Aaron Eckhart"],
             "description": "When the menace known as the Joker wreaks havoc on Gotham.",
+            "seriesName": None,
+            "seriesOrder": None
         }
         dark_knight_dir = tmp_path / "The Dark Knight"
         dark_knight_dir.mkdir()
@@ -221,6 +225,8 @@ class TestSearchMovies:
             "creators": ["Winston Groom", "Eric Roth"],
             "mainStars": ["Tom Hanks", "Robin Wright", "Gary Sinise"],
             "description": "The presidencies of Kennedy and Johnson unfold through the perspective of an Alabama man.",
+            "seriesName": None,
+            "seriesOrder": None
         }
         forrest_dir = tmp_path / "Forrest Gump"
         forrest_dir.mkdir()
@@ -277,6 +283,8 @@ class TestSearchMovies:
             "creators": ["Unknown"],
             "mainStars": ["Unknown Actor"],
             "description": "A bad movie.",
+            "seriesName": None,
+            "seriesOrder": None
         }
         bad_movie_dir = tmp_path / "Bad Movie"
         bad_movie_dir.mkdir()
@@ -345,6 +353,8 @@ class TestSearchMovies:
             "creators": ["Jonathan Nolan", "Christopher Nolan"],
             "mainStars": ["Christian Bale", "Heath Ledger", "Aaron Eckhart"],
             "description": "When the menace known as the Joker wreaks havoc on Gotham.",
+            "seriesName": None,
+            "seriesOrder": None
         }
         dark_knight_dir = tmp_path / "The Dark Knight"
         dark_knight_dir.mkdir()
