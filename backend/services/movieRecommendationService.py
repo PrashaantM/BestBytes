@@ -51,7 +51,13 @@ class MovieRecommendationService:
             # Weight genres by rating (ratings >= 5 contribute, higher ratings contribute more)
             if rating >= 5:
                 weight = rating - 4  # 5 gets weight 1, 10 gets weight 6
-                genres = metadata.get('movieGenres', [])
+                # Handle both dict and Pydantic model metadata
+                if isinstance(metadata, dict):
+                    genres = metadata.get('movieGenres', [])
+                else:
+                    # It's a Pydantic model
+                    genres = getattr(metadata, 'movieGenres', [])
+                
                 for genre in genres:
                     if genre in genreCount:
                         genreCount[genre] += weight
@@ -62,7 +68,6 @@ class MovieRecommendationService:
         sortedGenres = sorted(genreCount.items(), key=lambda x: x[1], reverse=True)
         topGenres = [genre for genre, count in sortedGenres[:10]]  # Increased from 5 to 10
         print(f"DEBUG: Genre weights: {dict(sortedGenres)}")
-        return topGenres 
         return topGenres
     
     def getTop5Movies(self,reviewList:Dict[str, Dict[str,Any]]) -> List[str]:
@@ -128,7 +133,13 @@ class MovieRecommendationService:
         topRateDescriptions = []
         for movie in top5Movies:
             try:
-                topRateDescriptions.append(userReviewHistory[movie]["metadata"].get('description', ''))
+                metadata = userReviewHistory[movie]["metadata"]
+                # Handle both dict and Pydantic model metadata
+                if isinstance(metadata, dict):
+                    desc = metadata.get('description', '')
+                else:
+                    desc = getattr(metadata, 'description', '')
+                topRateDescriptions.append(desc)
             except Exception:
                 continue
         
@@ -151,8 +162,14 @@ class MovieRecommendationService:
         for idx, movieName in enumerate(movies):
             metadata = allOtherMovies[movieName]
 
+            # Handle both dict and Pydantic model metadata for movieGenres
+            if isinstance(metadata, dict):
+                genres = metadata.get('movieGenres', [])
+            else:
+                genres = getattr(metadata, 'movieGenres', [])
+            
             #score from 0-1 for matching genres
-            genreMatch = sum(1 for genre in metadata.get('movieGenres', []) if genre in likedGenres)/len(likedGenres) if likedGenres else 0
+            genreMatch = sum(1 for genre in genres if genre in likedGenres)/len(likedGenres) if likedGenres else 0
 
             #Score of 0-1 for a cosine similarity between movie descriptions
             contentMatch = float(similarities[idx]) if idx < len(similarities) else 0.0

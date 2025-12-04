@@ -1,1 +1,9 @@
-{}
+{
+  "admin": {
+    "email": "admin@bestbytes.com",
+    "password": "$2b$12$FwbXN9I9lYeme7bcGHxB2u8muevQ7pZBhxOSLFIj/SvVaAzTszptW",
+    "isVerified": true,
+    "verificationToken": "19b5540f-884a-4548-8837-b02b8712f058",
+    "isAdmin": true
+  }
+}

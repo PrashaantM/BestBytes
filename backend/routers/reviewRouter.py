@@ -69,9 +69,15 @@ def loadReviewsFromCSV():
                                 continue
                     if reviews:
                         movieReviews_memory[movie_folder.lower()] = reviews
-                        print(f"Loaded {len(reviews)} reviews for {movie_folder}")
+                        try:
+                            print(f"Loaded {len(reviews)} reviews for {movie_folder}")
+                        except UnicodeEncodeError:
+                            print(f"Loaded {len(reviews)} reviews for movie")
                 except Exception as e:
-                    print(f"Error loading reviews for {movie_folder}: {e}")
+                    try:
+                        print(f"Error loading reviews for {movie_folder}: {e}")
+                    except UnicodeEncodeError:
+                        print(f"Error loading reviews for movie: {e}")
 
 # Load reviews at module import time
 loadReviewsFromCSV()
