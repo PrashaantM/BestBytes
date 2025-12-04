@@ -399,7 +399,18 @@ function displayMovieModal(movie, reviews) {
         <p><strong>Description:</strong></p>
         <p>${movie.description || 'No description available'}</p>
         
-        ${sessionToken ? `<button onclick="showAddToListModal('${movie.title.replace(/'/g, "\\'")}')">📋 Add to List</button>` : ''}
+        ${sessionToken ? `
+        <button onclick="showAddToListModal('${movie.title.replace(/'/g, "\\'")}')">
+            Add to List
+        </button>
+
+        <button onclick="markMovieAsWatched('${movie.title.replace(/'/g, "\\'")}')" 
+                class="btn-primary" 
+                style="margin-top: 10px;">
+            ✔ Mark as Watched
+        </button>
+    ` : ''}
+
         
         <div class="reviews-section">
             <h3>Reviews (${reviews ? reviews.length : 0})</h3>
@@ -408,6 +419,31 @@ function displayMovieModal(movie, reviews) {
     `;
     
     modal.style.display = 'block';
+}
+
+async function markMovieAsWatched(movieTitle) {
+    if (!sessionToken || !currentUser) {
+        alert("Please log in to mark movies as watched.");
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_URL}/lists/watched/add?username=${currentUser}&movieTitle=${encodeURIComponent(movieTitle)}&sessionToken=${sessionToken}`,
+            { method: "POST" }
+        );
+
+        if (response.ok) {
+            alert(`✔ Marked "${movieTitle}" as watched`);
+            loadSeries(); // refresh progress bars
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.detail || "Failed to mark as watched"}`);
+        }
+    } catch (err) {
+        console.error("Error marking watched:", err);
+        alert("Failed to mark movie as watched.");
+    }
 }
 
 function closeModal() {
@@ -1005,10 +1041,37 @@ async function loadSeries() {
             container.innerHTML = '';
             
             for (const [seriesName, movies] of Object.entries(seriesData)) {
+
+                let progress = null;
+                try {
+                    const progressRes = await fetch(
+                        `${API_URL}/series/${encodeURIComponent(seriesName)}/progress/${currentUser}?sessionToken=${sessionToken}`
+                    );
+                    if (progressRes.ok) {
+                        progress = await progressRes.json();
+                    }
+                } catch (err) {
+                    console.error('Progress error:', err);
+                }
+
+                const percent = progress ? progress.progressPercent : 0;
+                const watched = progress ? progress.watched : 0;
+                const total = progress ? progress.totalMovies : movies.length;
+
                 const seriesDiv = document.createElement('div');
                 seriesDiv.className = 'series-card';
                 seriesDiv.innerHTML = `
                     <h3>${seriesName}</h3>
+
+                    <p><strong>Progress:</strong> ${percent}%  
+                    (${watched}/${total} watched)</p>
+
+                    <div class="progress-bar">
+                        <div class="progress-fill" 
+                            style="width: ${percent}%; background:#667eea; height:8px; border-radius:4px;">
+                        </div>
+                    </div>
+
                     <div class="series-movies">
                         ${movies.map(m => `<div class="series-movie-item">
                             <span class="series-order">${m.order}</span>
@@ -1016,8 +1079,10 @@ async function loadSeries() {
                         </div>`).join('')}
                     </div>
                 `;
+
                 container.appendChild(seriesDiv);
             }
+
             
             if (Object.keys(seriesData).length === 0) {
                 container.innerHTML = '<p>No series available yet</p>';
